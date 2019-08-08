@@ -58,12 +58,10 @@ mod tests {
             .unwrap();
 
         let server_encrypted = decode_hex(&res);
-
         let local_decrypted = decrypt(&sk[..], server_encrypted.as_slice()).unwrap();
         assert_eq!(local_decrypted, MSG.as_bytes());
 
         let local_encrypted = encrypt(uncompressed_pk, MSG.as_bytes()).unwrap();
-
         let params = [
             ("data", format!("{}{}", "", encode(local_encrypted))),
             ("prv", format!("{}{}", "0x", sk_hex)),
