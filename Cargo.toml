@@ -5,6 +5,10 @@ authors = ["Weiliang Li <to.be.impressive@gmail.com"]
 edition = "2018"
 
 [dependencies]
+rand = "0.7"
 secp256k1 = "0.15"
-crypto = { package = "rust-crypto", version = "0.2"}
 hex ="0.3"
+openssl ="0.10"
+
+[dev-dependencies]
+reqwest = "0.9"
