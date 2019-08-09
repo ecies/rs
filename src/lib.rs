@@ -13,7 +13,7 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
     let encrypted = aes_encrypt(aes_key, msg);
 
     let mut cipher_text = Vec::with_capacity(UNCOMPRESSED_PUBLIC_KEY_SIZE + encrypted.len());
-    cipher_text.extend(ephemeral_pk.serialize_uncompressed().into_iter());
+    cipher_text.extend(ephemeral_pk.serialize_uncompressed().iter());
     cipher_text.extend(encrypted);
 
     Ok(cipher_text)
@@ -36,8 +36,8 @@ mod tests {
     use hex::encode;
     use utils::{decode_hex, generate_keypair};
 
-    const PYTHON_BACKEND: &'static str = "https://eciespy.herokuapp.com/";
-    const MSG: &'static str = "helloworld";
+    const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
+    const MSG: &str = "helloworld";
 
     #[test]
     fn check_encrypt_decrypt_against_python() {
@@ -77,5 +77,4 @@ mod tests {
 
         assert_eq!(res, MSG);
     }
-
 }

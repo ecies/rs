@@ -13,9 +13,8 @@ pub fn get_valid_secret() -> SecretKey {
 
     loop {
         OsRng.fill_bytes(&mut key);
-        match SecretKey::from_slice(&key) {
-            Ok(k) => return k,
-            Err(_) => {}
+        if let Ok(k) = SecretKey::from_slice(&key) {
+            return k;
         }
     }
 }
@@ -31,7 +30,7 @@ pub fn remove0x(hex: &str) -> &str {
     if hex.starts_with("0x") || hex.starts_with("0X") {
         return &hex[2..];
     }
-    return hex;
+    hex
 }
 
 pub fn decode_hex(hex: &str) -> Vec<u8> {
@@ -94,20 +93,19 @@ mod tests {
 
     #[test]
     fn check_aes_random_key() {
-        let text = "this is a text".as_bytes();
+        let text = b"this is a text";
         let mut key = [0u8; 32];
         OsRng.fill_bytes(&mut key);
 
         assert_eq!(
             text,
-            aes_decrypt(&key, aes_encrypt(&key, &text).as_slice()).as_slice()
+            aes_decrypt(&key, aes_encrypt(&key, text).as_slice()).as_slice()
         );
     }
 
     #[test]
     fn check_aes_known_key() {
-        let text = "helloworld".as_bytes();
-
+        let text = b"helloworld";
         let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
         let iv = decode_hex("f3e1ba810d2c8900b11312b7c725565f");
         let tag = decode_hex("ec3b71e17c11dbe31484da9450edcf6c");
