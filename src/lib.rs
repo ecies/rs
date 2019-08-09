@@ -1,11 +1,12 @@
 use secp256k1::{
-    constants::UNCOMPRESSED_PUBLIC_KEY_SIZE, ecdh::SharedSecret, Error, PublicKey, SecretKey,
+    constants::UNCOMPRESSED_PUBLIC_KEY_SIZE, ecdh::SharedSecret, Error as SecpError, PublicKey,
+    SecretKey,
 };
 
 pub mod utils;
 use utils::{aes_decrypt, aes_encrypt, generate_keypair};
 
-pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_pk = PublicKey::from_slice(receiver_pub)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
@@ -19,7 +20,7 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(cipher_text)
 }
 
-pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_sk = SecretKey::from_slice(receiver_sec)?;
 
     let ephemeral_pk = PublicKey::from_slice(&msg[..UNCOMPRESSED_PUBLIC_KEY_SIZE])?;
@@ -38,6 +39,21 @@ mod tests {
 
     const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
     const MSG: &str = "helloworld";
+
+    #[test]
+    fn check_encrypt_decrypt() {
+        let (sk, pk) = generate_keypair();
+        let msg = MSG.as_bytes();
+        assert_eq!(
+            msg,
+            decrypt(
+                &sk[..],
+                &encrypt(&pk.serialize_uncompressed(), msg).unwrap()
+            )
+            .unwrap()
+            .as_slice()
+        );
+    }
 
     #[test]
     fn check_encrypt_decrypt_against_python() {
@@ -62,10 +78,7 @@ mod tests {
         assert_eq!(local_decrypted, MSG.as_bytes());
 
         let local_encrypted = encrypt(uncompressed_pk, MSG.as_bytes()).unwrap();
-        let params = [
-            ("data", format!("{}{}", "", encode(local_encrypted))),
-            ("prv", format!("{}{}", "0x", sk_hex)),
-        ];
+        let params = [("data", encode(local_encrypted)), ("prv", sk_hex)];
 
         let res = client
             .post(PYTHON_BACKEND)
