@@ -1,9 +1,13 @@
 version: 2
 
+defaults: &defaults
+  working_directory: ~/repo
+  docker:
+    - image: rust
+
 jobs:
   test:
-    docker:
-      - image: rust
+    <<: *defaults
     steps:
       - checkout
       - run:
@@ -28,3 +32,33 @@ jobs:
       - run:
           name: Run all tests
           command: cargo test --all
+  deploy:
+    docker:
+      - image: rust
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Authenticate with registry
+          command: echo "auth crate"
+      - run:
+          name: Publish package
+          command: echo "publish crate"
+
+workflows:
+  version: 2
+  test-deploy:
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /^v.*/
+      - deploy:
+          requires:
+            - test
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
