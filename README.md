@@ -1,12 +1,12 @@
 # eciesrs
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/48d5be4149ad4fff8ccd47768f08db7d)](https://www.codacy.com/app/kigawas/eciesrs?utm_source=github.com&utm_medium=referral&utm_content=kigawas/eciesrs&utm_campaign=Badge_Grade)
-[![License](https://img.shields.io/github/license/kigawas/eciesrs.svg)](https://github.com/kigawas/eciesrs)
-[![Circle CI](https://img.shields.io/circleci/project/kigawas/eciesrs/master.svg)](https://circleci.com/gh/kigawas/eciesrs)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1c6d6ed949dd4836ab97421039e8be75)](https://www.codacy.com/app/ecies/rs)
+[![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs)
+[![Circle CI](https://img.shields.io/circleci/project/ecies/rs/master.svg)](https://circleci.com/gh/ecies/rs)
 
 Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust.
 
-This is the Rust version of [eciespy](https://github.com/kigawas/eciespy).
+This is the Rust version of [eciespy](https://github.com/ecies/py).
 
 ## API
 
