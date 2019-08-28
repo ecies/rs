@@ -4,6 +4,7 @@ use secp256k1::{
 };
 
 pub mod utils;
+
 use utils::{aes_decrypt, aes_encrypt, generate_keypair};
 
 pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {

@@ -37,6 +37,10 @@ pub fn decode_hex(hex: &str) -> Vec<u8> {
     decode(remove0x(hex)).unwrap()
 }
 
+pub fn encapsulate() {}
+
+pub fn decapsulate() {}
+
 pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Vec<u8> {
     let cipher = Cipher::aes_256_gcm();
 
