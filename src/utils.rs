@@ -1,7 +1,9 @@
 use hex::decode;
+use hkdf::Hkdf;
 use openssl::symm::{decrypt_aead, encrypt_aead, Cipher};
 use rand::{rngs::OsRng, RngCore};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use sha2::Sha256;
 
 const AES_IV_LENGTH: usize = 16;
 const AES_TAG_LENGTH: usize = 16;
@@ -37,9 +39,41 @@ pub fn decode_hex(hex: &str) -> Vec<u8> {
     decode(remove0x(hex)).unwrap()
 }
 
-pub fn encapsulate() {}
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> [u8; 32] {
+    let secp = Secp256k1::new();
+    let mut shared_point = *peer_pk;
+    shared_point.mul_assign(&secp, &sk[..]).unwrap();
 
-pub fn decapsulate() {}
+    let mut master = Vec::new();
+    master.extend(
+        PublicKey::from_secret_key(&secp, sk)
+            .serialize_uncompressed()
+            .iter(),
+    );
+    master.extend(shared_point.serialize_uncompressed().iter());
+
+    let h = Hkdf::<Sha256>::new(None, master.as_slice());
+    let mut out = [0u8; 32];
+    h.expand(&[], &mut out).unwrap();
+
+    out
+}
+
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> [u8; 32] {
+    let secp = Secp256k1::new();
+    let mut shared_point = *pk;
+    shared_point.mul_assign(&secp, &peer_sk[..]).unwrap();
+
+    let mut master = Vec::new();
+    master.extend(pk.serialize_uncompressed().iter());
+    master.extend(shared_point.serialize_uncompressed().iter());
+
+    let h = Hkdf::<Sha256>::new(None, master.as_slice());
+    let mut out = [0u8; 32];
+    h.expand(&[], &mut out).unwrap();
+
+    out
+}
 
 pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Vec<u8> {
     let cipher = Cipher::aes_256_gcm();
@@ -71,21 +105,7 @@ pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hex::decode;
-    use openssl::sha::sha256;
-    use secp256k1::{ecdh::SharedSecret, Error};
-
-    #[test]
-    fn check_sha256() {
-        let zeros = [0; 16];
-        let digest = sha256(&zeros);
-        let expected_digest = decode(concat!(
-            "374708fff7719dd5979ec875d56cd228",
-            "6f6d3cf7ec317a3b25632aab28ec37bb"
-        ))
-        .unwrap();
-        assert_eq!(digest, expected_digest.as_slice());
-    }
+    use secp256k1::Error;
 
     #[test]
     fn check_remove_0x_decode_hex() {
@@ -147,22 +167,34 @@ mod tests {
     }
 
     #[test]
-    fn test_ecdh() {
-        let secp = Secp256k1::new();
-        let mut one = [0u8; 32];
-        let mut two = [0u8; 32];
-        one[31] = 1u8;
-        two[31] = 2u8;
+    fn test_hkdf() {
+        let text = b"secret";
 
-        let k1 = SecretKey::from_slice(&one).unwrap();
-        let k2 = SecretKey::from_slice(&two).unwrap();
+        let h = Hkdf::<Sha256>::new(None, text);
+        let mut out = [0u8; 32];
+        let r = h.expand(&EMPTY_BYTES, &mut out);
 
-        let known_ecdh =
-            decode_hex("b1c9938f01121e159887ac2c8d393a22e4476ff8212de13fe1939de2a236f0a7");
-
+        assert!(r.is_ok());
         assert_eq!(
-            &SharedSecret::new(&PublicKey::from_secret_key(&secp, &k1), &k2)[..],
-            known_ecdh.as_slice()
-        )
+            out.to_vec(),
+            decode_hex("2f34e5ff91ec85d53ca9b543683174d0cf550b60d5f52b24c97b386cfcf6cbbf")
+        );
+
+        let mut two = [0u8; 32];
+        let mut three = [0u8; 32];
+        two[31] = 2u8;
+        three[31] = 3u8;
+
+        let secp = Secp256k1::new();
+        let sk2 = SecretKey::from_slice(&two).unwrap();
+        let pk2 = PublicKey::from_secret_key(&secp, &sk2);
+        let sk3 = SecretKey::from_slice(&three).unwrap();
+        let pk3 = PublicKey::from_secret_key(&secp, &sk3);
+
+        assert_eq!(encapsulate(&sk2, &pk3), decapsulate(&pk2, &sk3));
+        assert_eq!(
+            encapsulate(&sk2, &pk3).to_vec(),
+            decode_hex("6f982d63e8590c9d9b5b4c1959ff80315d772edd8f60287c9361d548d5200f82")
+        );
     }
 }

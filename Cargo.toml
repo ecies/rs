@@ -9,6 +9,8 @@ rand = "0.7"
 secp256k1 = "0.15"
 hex ="0.3"
 openssl ="0.10"
+hkdf = "0.8"
+sha2 = "0.8"
 
 [dev-dependencies]
 reqwest = "0.9"
