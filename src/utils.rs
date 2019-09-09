@@ -86,9 +86,10 @@ pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Vec<u8> {
     let encrypted = encrypt_aead(cipher, key, Some(&iv), &EMPTY_BYTES, msg, &mut tag).unwrap();
 
     let mut output = Vec::with_capacity(AES_IV_LENGTH + AES_TAG_LENGTH + encrypted.len());
-    output.extend_from_slice(&iv);
-    output.extend_from_slice(&tag);
+    output.extend(iv.iter());
+    output.extend(tag.iter());
     output.extend(encrypted);
+
     output
 }
 
