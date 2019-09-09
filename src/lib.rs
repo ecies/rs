@@ -40,6 +40,9 @@ mod tests {
     const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
     const MSG: &str = "helloworld";
 
+    const BIG_MSG_SIZE: usize = 100 * 1024 * 1024;
+    const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE]; // 100 MB
+
     #[test]
     fn check_encrypt_decrypt() {
         let (sk, pk) = generate_keypair();
@@ -52,6 +55,16 @@ mod tests {
             )
             .unwrap()
             .as_slice()
+        );
+
+        let msg = &BIG_MSG;
+        assert_eq!(
+            msg.to_vec(),
+            decrypt(
+                &sk[..],
+                &encrypt(&pk.serialize_uncompressed(), msg).unwrap()
+            )
+            .unwrap()
         );
     }
 

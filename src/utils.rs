@@ -2,7 +2,7 @@ use hex::decode;
 use hkdf::Hkdf;
 use openssl::symm::{decrypt_aead, encrypt_aead, Cipher};
 use rand::{rngs::OsRng, RngCore};
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use secp256k1::{constants::UNCOMPRESSED_PUBLIC_KEY_SIZE, PublicKey, Secp256k1, SecretKey};
 use sha2::Sha256;
 
 const AES_IV_LENGTH: usize = 16;
@@ -44,7 +44,7 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> [u8; 32] {
     let mut shared_point = *peer_pk;
     shared_point.mul_assign(&secp, &sk[..]).unwrap();
 
-    let mut master = Vec::new();
+    let mut master = Vec::with_capacity(UNCOMPRESSED_PUBLIC_KEY_SIZE * 2);
     master.extend(
         PublicKey::from_secret_key(&secp, sk)
             .serialize_uncompressed()
@@ -64,7 +64,7 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> [u8; 32] {
     let mut shared_point = *pk;
     shared_point.mul_assign(&secp, &peer_sk[..]).unwrap();
 
-    let mut master = Vec::new();
+    let mut master = Vec::with_capacity(UNCOMPRESSED_PUBLIC_KEY_SIZE * 2);
     master.extend(pk.serialize_uncompressed().iter());
     master.extend(shared_point.serialize_uncompressed().iter());
 
