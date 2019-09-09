@@ -1,17 +1,17 @@
 use secp256k1::{
-    constants::UNCOMPRESSED_PUBLIC_KEY_SIZE, ecdh::SharedSecret, Error as SecpError, PublicKey,
-    SecretKey,
+    constants::UNCOMPRESSED_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey,
 };
 
 pub mod utils;
-use utils::{aes_decrypt, aes_encrypt, generate_keypair};
+
+use utils::{aes_decrypt, aes_encrypt, decapsulate, encapsulate, generate_keypair};
 
 pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_pk = PublicKey::from_slice(receiver_pub)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
-    let aes_key = &SharedSecret::new(&receiver_pk, &ephemeral_sk)[..];
-    let encrypted = aes_encrypt(aes_key, msg);
+    let aes_key = encapsulate(&ephemeral_sk, &receiver_pk);
+    let encrypted = aes_encrypt(&aes_key, msg);
 
     let mut cipher_text = Vec::with_capacity(UNCOMPRESSED_PUBLIC_KEY_SIZE + encrypted.len());
     cipher_text.extend(ephemeral_pk.serialize_uncompressed().iter());
@@ -26,9 +26,9 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let ephemeral_pk = PublicKey::from_slice(&msg[..UNCOMPRESSED_PUBLIC_KEY_SIZE])?;
     let encrypted = &msg[UNCOMPRESSED_PUBLIC_KEY_SIZE..];
 
-    let aes_key = &SharedSecret::new(&ephemeral_pk, &receiver_sk)[..];
+    let aes_key = decapsulate(&ephemeral_pk, &receiver_sk);
 
-    Ok(aes_decrypt(aes_key, encrypted))
+    Ok(aes_decrypt(&aes_key, encrypted))
 }
 
 #[cfg(test)]
