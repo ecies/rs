@@ -14,3 +14,9 @@ sha2 = "0.8"
 
 [dev-dependencies]
 reqwest = "0.9"
+criterion = "0.3"
+
+[[bench]]
+name = "simple"
+path = "bench/simple.rs"
+harness = false
