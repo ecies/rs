@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [stable, nightly]
 
     steps:
@@ -18,5 +18,13 @@ jobs:
         with:
           rust-version: ${{ matrix.rust }}
       - uses: actions/checkout@master
-      - name: Run tests
+
+      - name: Run tests on windows
+        if: matrix.os == 'windows-latest'
+        env:
+          OPENSSL_DIR: C:\Program Files\OpenSSL
+        run: ls C:\
+
+      - name: Run tests on *nix
         run: cargo test --verbose
+        if: matrix.os != 'windows-latest'
