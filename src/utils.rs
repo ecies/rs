@@ -11,6 +11,8 @@ const AES_TAG_LENGTH: usize = 16;
 const AES_IV_PLUS_TAG_LENGTH: usize = AES_IV_LENGTH + AES_TAG_LENGTH;
 const EMPTY_BYTES: [u8; 0] = [];
 
+pub type AesKey = [u8; 32];
+
 lazy_static! {
     static ref CONTEXT: Secp256k1<All> = Secp256k1::new();
 }
@@ -30,7 +32,7 @@ pub fn decode_hex(hex: &str) -> Vec<u8> {
     decode(remove0x(hex)).unwrap()
 }
 
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> [u8; 32] {
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> AesKey {
     let mut shared_point = *peer_pk;
     shared_point.mul_assign(&CONTEXT, &sk[..]).unwrap();
 
@@ -41,10 +43,11 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> [u8; 32] {
             .iter(),
     );
     master.extend(shared_point.serialize_uncompressed().iter());
+
     hkdf_sha256(master.as_slice())
 }
 
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> [u8; 32] {
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> AesKey {
     let mut shared_point = *pk;
     shared_point.mul_assign(&CONTEXT, &peer_sk[..]).unwrap();
 
@@ -83,7 +86,7 @@ pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Vec<u8> {
 }
 
 // private
-fn hkdf_sha256(master: &[u8]) -> [u8; 32] {
+fn hkdf_sha256(master: &[u8]) -> AesKey {
     let h = Hkdf::<Sha256>::new(None, master);
     let mut out = [0u8; 32];
     h.expand(&EMPTY_BYTES, &mut out).unwrap();
