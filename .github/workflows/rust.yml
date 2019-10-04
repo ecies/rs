@@ -23,7 +23,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         env:
           OPENSSL_DIR: C:\Program Files\OpenSSL
-        run: ls C:\
+        run: ls "%OPENSSL_DIR%"
 
       - name: Run tests on *nix
         run: cargo test --verbose
