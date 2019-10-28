@@ -23,14 +23,11 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError>
 ```rust
 const MSG: &str = "helloworld";
 let (sk, pk) = generate_keypair();
+let (sk, pk) = (&sk.serialize(), &pk.serialize());
+
 let msg = MSG.as_bytes();
 assert_eq!(
     msg,
-    decrypt(
-        &sk[..],
-        &encrypt(&pk.serialize_uncompressed(), msg).unwrap()
-    )
-    .unwrap()
-    .as_slice()
+    decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice()
 );
 ```
