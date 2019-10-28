@@ -1,9 +1,8 @@
 use hex::decode;
 use hkdf::Hkdf;
-use lazy_static::lazy_static;
 use openssl::symm::{decrypt_aead, encrypt_aead, Cipher};
 use rand::{thread_rng, Rng};
-use secp256k1::{constants::UNCOMPRESSED_PUBLIC_KEY_SIZE, All, PublicKey, Secp256k1, SecretKey};
+use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, PublicKey, SecretKey};
 use sha2::Sha256;
 
 const AES_IV_LENGTH: usize = 16;
@@ -13,12 +12,9 @@ const EMPTY_BYTES: [u8; 0] = [];
 
 pub type AesKey = [u8; 32];
 
-lazy_static! {
-    static ref CONTEXT: Secp256k1<All> = Secp256k1::new();
-}
-
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    CONTEXT.generate_keypair(&mut thread_rng())
+    let sk = SecretKey::random(&mut thread_rng());
+    (sk.clone(), PublicKey::from_secret_key(&sk))
 }
 
 pub fn remove0x(hex: &str) -> &str {
@@ -33,27 +29,23 @@ pub fn decode_hex(hex: &str) -> Vec<u8> {
 }
 
 pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> AesKey {
-    let mut shared_point = *peer_pk;
-    shared_point.mul_assign(&CONTEXT, &sk[..]).unwrap();
+    let mut shared_point = peer_pk.clone();
+    shared_point.tweak_mul_assign(&sk).unwrap();
 
-    let mut master = Vec::with_capacity(UNCOMPRESSED_PUBLIC_KEY_SIZE * 2);
-    master.extend(
-        PublicKey::from_secret_key(&CONTEXT, sk)
-            .serialize_uncompressed()
-            .iter(),
-    );
-    master.extend(shared_point.serialize_uncompressed().iter());
+    let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
+    master.extend(PublicKey::from_secret_key(&sk).serialize().iter());
+    master.extend(shared_point.serialize().iter());
 
     hkdf_sha256(master.as_slice())
 }
 
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> AesKey {
-    let mut shared_point = *pk;
-    shared_point.mul_assign(&CONTEXT, &peer_sk[..]).unwrap();
+    let mut shared_point = pk.clone();
+    shared_point.tweak_mul_assign(&peer_sk).unwrap();
 
-    let mut master = Vec::with_capacity(UNCOMPRESSED_PUBLIC_KEY_SIZE * 2);
-    master.extend(pk.serialize_uncompressed().iter());
-    master.extend(shared_point.serialize_uncompressed().iter());
+    let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
+    master.extend(pk.serialize().iter());
+    master.extend(shared_point.serialize().iter());
 
     hkdf_sha256(master.as_slice())
 }
@@ -85,7 +77,7 @@ pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Vec<u8> {
     decrypt_aead(cipher, key, Some(&iv), &EMPTY_BYTES, encrypted, tag).unwrap()
 }
 
-// private
+// private below
 fn hkdf_sha256(master: &[u8]) -> AesKey {
     let h = Hkdf::<Sha256>::new(None, master);
     let mut out = [0u8; 32];
@@ -99,7 +91,7 @@ mod tests {
     use secp256k1::Error;
 
     #[test]
-    fn check_remove_0x_decode_hex() {
+    fn test_remove_0x_decode_hex() {
         assert_eq!(remove0x("0x0011"), "0011");
         assert_eq!(remove0x("0X0011"), "0011");
         assert_eq!(remove0x("0011"), "0011");
@@ -107,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn check_generate_keypair() {
+    fn test_generate_keypair() {
         let (sk1, pk1) = generate_keypair();
         let (sk2, pk2) = generate_keypair();
         assert_ne!(sk1, sk2);
@@ -115,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn check_aes_random_key() {
+    fn test_aes_random_key() {
         let text = b"this is a text";
         let mut key = [0u8; 32];
         thread_rng().fill(&mut key);
@@ -133,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn check_aes_known_key() {
+    fn test_aes_known_key() {
         let text = b"helloworld";
         let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
         let iv = decode_hex("f3e1ba810d2c8900b11312b7c725565f");
@@ -153,18 +145,18 @@ mod tests {
         // 0 < private key < group order int is valid
         let zero = [0u8; 32];
         assert_eq!(
-            SecretKey::from_slice(&zero).err().unwrap(),
+            SecretKey::parse_slice(&zero).err().unwrap(),
             Error::InvalidSecretKey
         );
 
         let group_order_minus_1 =
             decode_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140");
-        SecretKey::from_slice(&group_order_minus_1).unwrap();
+        SecretKey::parse_slice(&group_order_minus_1).unwrap();
 
         let group_order =
             decode_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
         assert_eq!(
-            SecretKey::from_slice(&group_order).err().unwrap(),
+            SecretKey::parse_slice(&group_order).err().unwrap(),
             Error::InvalidSecretKey
         );
     }
@@ -188,10 +180,10 @@ mod tests {
         two[31] = 2u8;
         three[31] = 3u8;
 
-        let sk2 = SecretKey::from_slice(&two).unwrap();
-        let pk2 = PublicKey::from_secret_key(&CONTEXT, &sk2);
-        let sk3 = SecretKey::from_slice(&three).unwrap();
-        let pk3 = PublicKey::from_secret_key(&CONTEXT, &sk3);
+        let sk2 = SecretKey::parse_slice(&two).unwrap();
+        let pk2 = PublicKey::from_secret_key(&sk2);
+        let sk3 = SecretKey::parse_slice(&three).unwrap();
+        let pk3 = PublicKey::from_secret_key(&sk3);
 
         assert_eq!(encapsulate(&sk2, &pk3), decapsulate(&pk2, &sk3));
         assert_eq!(

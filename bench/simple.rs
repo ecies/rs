@@ -8,13 +8,12 @@ const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
 fn criterion_benchmark(c: &mut Criterion) {
     let (sk, pk) = generate_keypair();
-    let (sk, pk) = (&sk[..], &pk.serialize_uncompressed());
+    let (sk, pk) = (&sk.serialize(), &pk.serialize());
 
-    let encrypted = &encrypt(pk, &BIG_MSG).unwrap();
+    let msg = &BIG_MSG;
+    let encrypted = &encrypt(pk, msg).unwrap();
 
-    c.bench_function("encrypt 100M", |b| {
-        b.iter(|| encrypt(pk, &BIG_MSG).unwrap())
-    });
+    c.bench_function("encrypt 100M", |b| b.iter(|| encrypt(pk, msg).unwrap()));
 
     c.bench_function("decrypt 100M", |b| {
         b.iter(|| decrypt(sk, encrypted).unwrap())

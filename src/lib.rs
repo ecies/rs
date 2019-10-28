@@ -1,30 +1,28 @@
-use secp256k1::{
-    constants::UNCOMPRESSED_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey,
-};
+use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
 pub mod utils;
 
 use utils::{aes_decrypt, aes_encrypt, decapsulate, encapsulate, generate_keypair};
 
 pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
-    let receiver_pk = PublicKey::from_slice(receiver_pub)?;
+    let receiver_pk = PublicKey::parse_slice(receiver_pub, None)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
     let aes_key = encapsulate(&ephemeral_sk, &receiver_pk);
     let encrypted = aes_encrypt(&aes_key, msg);
 
-    let mut cipher_text = Vec::with_capacity(UNCOMPRESSED_PUBLIC_KEY_SIZE + encrypted.len());
-    cipher_text.extend(ephemeral_pk.serialize_uncompressed().iter());
+    let mut cipher_text = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE + encrypted.len());
+    cipher_text.extend(ephemeral_pk.serialize().iter());
     cipher_text.extend(encrypted);
 
     Ok(cipher_text)
 }
 
 pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
-    let receiver_sk = SecretKey::from_slice(receiver_sec)?;
+    let receiver_sk = SecretKey::parse_slice(receiver_sec)?;
 
-    let ephemeral_pk = PublicKey::from_slice(&msg[..UNCOMPRESSED_PUBLIC_KEY_SIZE])?;
-    let encrypted = &msg[UNCOMPRESSED_PUBLIC_KEY_SIZE..];
+    let ephemeral_pk = PublicKey::parse_slice(&msg[..FULL_PUBLIC_KEY_SIZE], None)?;
+    let encrypted = &msg[FULL_PUBLIC_KEY_SIZE..];
 
     let aes_key = decapsulate(&ephemeral_pk, &receiver_sk);
 
@@ -43,37 +41,40 @@ mod tests {
     const BIG_MSG_SIZE: usize = 100 * 1024 * 1024;
     const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE]; // 100 MB
 
-    #[test]
-    fn check_encrypt_decrypt() {
-        let (sk, pk) = generate_keypair();
+    fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
         assert_eq!(
             msg,
-            decrypt(
-                &sk[..],
-                &encrypt(&pk.serialize_uncompressed(), msg).unwrap()
-            )
-            .unwrap()
-            .as_slice()
+            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice()
         );
 
         let msg = &BIG_MSG;
         assert_eq!(
             msg.to_vec(),
-            decrypt(
-                &sk[..],
-                &encrypt(&pk.serialize_uncompressed(), msg).unwrap()
-            )
-            .unwrap()
+            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap()
         );
     }
 
     #[test]
-    fn check_encrypt_decrypt_against_python() {
+    fn test_compressed_public() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
+        test_enc_dec(sk, pk);
+    }
+
+    #[test]
+    fn test_uncompressed_public() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize());
+        test_enc_dec(sk, pk);
+    }
+
+    #[test]
+    fn test_against_python() {
         let (sk, pk) = generate_keypair();
 
-        let sk_hex = encode(&sk[..].to_vec());
-        let uncompressed_pk = &pk.serialize_uncompressed();
+        let sk_hex = encode(&sk.serialize().to_vec());
+        let uncompressed_pk = &pk.serialize();
         let pk_hex = encode(uncompressed_pk.to_vec());
 
         let client = reqwest::Client::new();
@@ -87,7 +88,7 @@ mod tests {
             .unwrap();
 
         let server_encrypted = decode_hex(&res);
-        let local_decrypted = decrypt(&sk[..], server_encrypted.as_slice()).unwrap();
+        let local_decrypted = decrypt(&sk.serialize(), server_encrypted.as_slice()).unwrap();
         assert_eq!(local_decrypted, MSG.as_bytes());
 
         let local_encrypted = encrypt(uncompressed_pk, MSG.as_bytes()).unwrap();
