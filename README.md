@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs)
 [![Circle CI](https://img.shields.io/circleci/project/ecies/rs/master.svg)](https://circleci.com/gh/ecies/rs)
 
-Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust.
+Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on pure Rust implementation of [secp256k1](https://crates.io/crates/libsecp256k1).
 
 This is the Rust version of [eciespy](https://github.com/ecies/py).
 
@@ -18,7 +18,7 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError>
 pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError>
 ```
 
-## Example
+## Quick Start
 
 ```rust
 const MSG: &str = "helloworld";
