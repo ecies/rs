@@ -1,14 +1,16 @@
 [package]
 name = "ecies"
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
-authors = ["Weiliang Li <to.be.impressive@gmail.com"]
+authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 edition = "2018"
 repository = "https://github.com/ecies/rs"
+documentation = "https://github.com/ecies/rs"
+homepage = "https://github.com/ecies/rs"
 
 [dependencies]
-rand = "0.6"
+rand = "0.6.5"
 libsecp256k1 = "0.3.2"
 hex ="0.4"
 openssl ="0.10"
