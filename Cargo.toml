@@ -10,8 +10,8 @@ documentation = "https://github.com/ecies/rs"
 homepage = "https://github.com/ecies/rs"
 
 [dependencies]
-rand = "0.6.5"
-libsecp256k1 = "0.3.2"
+rand = "0.7.2"
+libsecp256k1 = "0.3.3"
 hex ="0.4"
 openssl ="0.10"
 hkdf = "0.8"
