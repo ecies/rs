@@ -31,3 +31,14 @@ assert_eq!(
     decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice()
 );
 ```
+
+## Release Notes
+
+### 0.1.1 ~ 0.1.2
+
+- Bump dependencies
+- Update documentation
+
+### 0.1.0
+
+- First beta version release

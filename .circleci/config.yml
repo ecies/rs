@@ -40,11 +40,11 @@ jobs:
       - attach_workspace:
           at: ~/repo
       - run:
-          name: Authenticate with registry
-          command: echo "auth crate"
+          name: Set token
+          command: cargo login $CARGO_DEPLOY_TOKEN
       - run:
           name: Publish package
-          command: echo "publish crate"
+          command: cargo publish
 
 workflows:
   version: 2
