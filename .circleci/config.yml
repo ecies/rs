@@ -37,8 +37,7 @@ jobs:
       - image: rust
     <<: *defaults
     steps:
-      - attach_workspace:
-          at: ~/repo
+      - checkout
       - run:
           name: Set token
           command: cargo login $CARGO_DEPLOY_TOKEN
