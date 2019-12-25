@@ -8,6 +8,7 @@ edition = "2018"
 repository = "https://github.com/ecies/rs"
 documentation = "https://github.com/ecies/rs"
 homepage = "https://github.com/ecies/rs"
+readme = "README.md"
 
 [dependencies]
 rand = "0.7.2"
