@@ -19,7 +19,7 @@ hkdf = "0.8"
 sha2 = "0.8"
 
 [dev-dependencies]
-reqwest = "0.9"
+reqwest = "0.10"
 criterion = "0.3"
 
 [[bench]]
