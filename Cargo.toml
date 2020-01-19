@@ -11,16 +11,18 @@ homepage = "https://github.com/ecies/rs"
 readme = "README.md"
 
 [dependencies]
-rand = "0.7.2"
-libsecp256k1 = "0.3.3"
-hex ="0.4"
+rand = "0.7.3"
+libsecp256k1 = "0.3.4"
+hex ="0.4.0"
 openssl ="0.10"
-hkdf = "0.8"
-sha2 = "0.8"
+hkdf = "0.8.0"
+sha2 = "0.8.1"
 
 [dev-dependencies]
-reqwest = "0.9"
-criterion = "0.3"
+tokio = "0.2.9"
+reqwest = "0.10.1"
+criterion = "0.3.0"
+futures-util = "0.3.1"
 
 [[bench]]
 name = "simple"

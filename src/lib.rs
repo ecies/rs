@@ -43,16 +43,10 @@ mod tests {
 
     fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
-        assert_eq!(
-            msg,
-            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice()
-        );
+        assert_eq!(msg, decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice());
 
         let msg = &BIG_MSG;
-        assert_eq!(
-            msg.to_vec(),
-            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap()
-        );
+        assert_eq!(msg.to_vec(), decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap());
     }
 
     #[test]
@@ -71,6 +65,11 @@ mod tests {
 
     #[test]
     fn test_against_python() {
+        use futures_util::FutureExt;
+        use tokio::runtime::Runtime;
+
+        let mut rt = Runtime::new().unwrap();
+
         let (sk, pk) = generate_keypair();
 
         let sk_hex = encode(&sk.serialize().to_vec());
@@ -79,12 +78,14 @@ mod tests {
 
         let client = reqwest::Client::new();
         let params = [("data", MSG), ("pub", pk_hex.as_str())];
-        let res = client
-            .post(PYTHON_BACKEND)
-            .form(&params)
-            .send()
-            .unwrap()
-            .text()
+        let res = rt
+            .block_on(
+                client
+                    .post(PYTHON_BACKEND)
+                    .form(&params)
+                    .send()
+                    .then(|r| r.unwrap().text()),
+            )
             .unwrap();
 
         let server_encrypted = decode_hex(&res);
@@ -94,12 +95,14 @@ mod tests {
         let local_encrypted = encrypt(uncompressed_pk, MSG.as_bytes()).unwrap();
         let params = [("data", encode(local_encrypted)), ("prv", sk_hex)];
 
-        let res = client
-            .post(PYTHON_BACKEND)
-            .form(&params)
-            .send()
-            .unwrap()
-            .text()
+        let res = rt
+            .block_on(
+                client
+                    .post(PYTHON_BACKEND)
+                    .form(&params)
+                    .send()
+                    .then(|r| r.unwrap().text()),
+            )
             .unwrap();
 
         assert_eq!(res, MSG);
