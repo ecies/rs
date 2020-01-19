@@ -5,7 +5,7 @@
 [![Circle CI](https://img.shields.io/circleci/project/ecies/rs/master.svg)](https://circleci.com/gh/ecies/rs)
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
 
-Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on pure Rust implementation of [secp256k1](https://crates.io/crates/libsecp256k1).
+Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
 
 This is the Rust version of [eciespy](https://github.com/ecies/py).
 
