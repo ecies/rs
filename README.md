@@ -35,10 +35,11 @@ assert_eq!(
 
 ## Release Notes
 
-### 0.1.1 ~ 0.1.2
+### 0.1.1 ~ 0.1.3
 
 - Bump dependencies
 - Update documentation
+- Fix error handling
 
 ### 0.1.0
 
