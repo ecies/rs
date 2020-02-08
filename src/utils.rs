@@ -50,7 +50,7 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> AesKey {
     hkdf_sha256(master.as_slice())
 }
 
-pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Vec<u8> {
+pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let cipher = Cipher::aes_256_gcm();
 
     let mut iv = [0u8; AES_IV_LENGTH];
@@ -58,23 +58,30 @@ pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Vec<u8> {
 
     let mut tag = [0u8; AES_TAG_LENGTH];
 
-    let encrypted = encrypt_aead(cipher, key, Some(&iv), &EMPTY_BYTES, msg, &mut tag).unwrap();
-    let mut output = Vec::with_capacity(AES_IV_LENGTH + AES_TAG_LENGTH + encrypted.len());
-    output.extend(iv.iter());
-    output.extend(tag.iter());
-    output.extend(encrypted);
+    if let Ok(encrypted) = encrypt_aead(cipher, key, Some(&iv), &EMPTY_BYTES, msg, &mut tag) {
+        let mut output = Vec::with_capacity(AES_IV_LENGTH + AES_TAG_LENGTH + encrypted.len());
+        output.extend(iv.iter());
+        output.extend(tag.iter());
+        output.extend(encrypted);
 
-    output
+        Some(output)
+    } else {
+        None
+    }
 }
 
-pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Vec<u8> {
+pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
+    if encrypted_msg.len() < AES_IV_PLUS_TAG_LENGTH {
+        return None;
+    }
+
     let cipher = Cipher::aes_256_gcm();
 
     let iv = &encrypted_msg[..AES_IV_LENGTH];
     let tag = &encrypted_msg[AES_IV_LENGTH..AES_IV_PLUS_TAG_LENGTH];
     let encrypted = &encrypted_msg[AES_IV_PLUS_TAG_LENGTH..];
 
-    decrypt_aead(cipher, key, Some(&iv), &EMPTY_BYTES, encrypted, tag).unwrap()
+    decrypt_aead(cipher, key, Some(&iv), &EMPTY_BYTES, encrypted, tag).ok()
 }
 
 // private below
@@ -107,6 +114,13 @@ mod tests {
     }
 
     #[test]
+    fn test_attempt_to_decrypt_invalid_message() {
+        assert!(aes_decrypt(&[], &[]).is_none());
+
+        assert!(aes_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
+    }
+
+    #[test]
     fn test_aes_random_key() {
         let text = b"this is a text";
         let mut key = [0u8; 32];
@@ -114,13 +128,17 @@ mod tests {
 
         assert_eq!(
             text,
-            aes_decrypt(&key, aes_encrypt(&key, text).as_slice()).as_slice()
+            aes_decrypt(&key, aes_encrypt(&key, text).unwrap().as_slice())
+                .unwrap()
+                .as_slice()
         );
 
         let utf8_text = "😀😀😀😀".as_bytes();
         assert_eq!(
             utf8_text,
-            aes_decrypt(&key, aes_encrypt(&key, utf8_text).as_slice()).as_slice()
+            aes_decrypt(&key, aes_encrypt(&key, utf8_text).unwrap().as_slice())
+                .unwrap()
+                .as_slice()
         );
     }
 
@@ -137,24 +155,19 @@ mod tests {
         cipher_text.extend(tag);
         cipher_text.extend(encrypted);
 
-        assert_eq!(text, aes_decrypt(&key, &cipher_text).as_slice());
+        assert_eq!(text, aes_decrypt(&key, &cipher_text).unwrap().as_slice());
     }
 
     #[test]
     fn test_valid_secret() {
         // 0 < private key < group order int is valid
         let zero = [0u8; 32];
-        assert_eq!(
-            SecretKey::parse_slice(&zero).err().unwrap(),
-            Error::InvalidSecretKey
-        );
+        assert_eq!(SecretKey::parse_slice(&zero).err().unwrap(), Error::InvalidSecretKey);
 
-        let group_order_minus_1 =
-            decode_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140");
+        let group_order_minus_1 = decode_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140");
         SecretKey::parse_slice(&group_order_minus_1).unwrap();
 
-        let group_order =
-            decode_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        let group_order = decode_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
         assert_eq!(
             SecretKey::parse_slice(&group_order).err().unwrap(),
             Error::InvalidSecretKey

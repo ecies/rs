@@ -9,7 +9,7 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
     let aes_key = encapsulate(&ephemeral_sk, &receiver_pk);
-    let encrypted = aes_encrypt(&aes_key, msg);
+    let encrypted = aes_encrypt(&aes_key, msg).ok_or(SecpError::InvalidMessage)?;
 
     let mut cipher_text = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE + encrypted.len());
     cipher_text.extend(ephemeral_pk.serialize().iter());
@@ -21,12 +21,16 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
 pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_sk = SecretKey::parse_slice(receiver_sec)?;
 
+    if msg.len() < FULL_PUBLIC_KEY_SIZE {
+        return Err(SecpError::InvalidMessage);
+    }
+
     let ephemeral_pk = PublicKey::parse_slice(&msg[..FULL_PUBLIC_KEY_SIZE], None)?;
     let encrypted = &msg[FULL_PUBLIC_KEY_SIZE..];
 
     let aes_key = decapsulate(&ephemeral_pk, &receiver_sk);
 
-    Ok(aes_decrypt(&aes_key, encrypted))
+    aes_decrypt(&aes_key, encrypted).ok_or(SecpError::InvalidMessage)
 }
 
 #[cfg(test)]
@@ -43,16 +47,39 @@ mod tests {
 
     fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
-        assert_eq!(
-            msg,
-            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice()
-        );
+        assert_eq!(msg, decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice());
 
         let msg = &BIG_MSG;
+        assert_eq!(msg.to_vec(), decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap());
+    }
+
+    #[test]
+    fn attempts_to_decrypt_with_another_key() {
+        let (_, pk1) = generate_keypair();
+
+        let (sk2, _) = generate_keypair();
+
         assert_eq!(
-            msg.to_vec(),
-            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap()
+            decrypt(
+                &sk2.serialize(),
+                encrypt(&pk1.serialize_compressed(), b"text").unwrap().as_slice()
+            ),
+            Err(SecpError::InvalidMessage)
         );
+    }
+
+    #[test]
+    fn attempts_to_decrypt_incorrect_message() {
+        let (sk, _) = generate_keypair();
+
+        assert_eq!(decrypt(&sk.serialize(), &[]), Err(SecpError::InvalidMessage));
+
+        assert_eq!(decrypt(&sk.serialize(), &[0u8; 65]), Err(SecpError::InvalidPublicKey));
+    }
+
+    #[test]
+    fn attempts_to_encrypt_with_invalid_key() {
+        assert_eq!(encrypt(&[0u8; 33], b"text"), Err(SecpError::InvalidPublicKey));
     }
 
     #[test]
@@ -71,6 +98,11 @@ mod tests {
 
     #[test]
     fn test_against_python() {
+        use futures_util::FutureExt;
+        use tokio::runtime::Runtime;
+
+        let mut rt = Runtime::new().unwrap();
+
         let (sk, pk) = generate_keypair();
 
         let sk_hex = encode(&sk.serialize().to_vec());
@@ -79,12 +111,14 @@ mod tests {
 
         let client = reqwest::Client::new();
         let params = [("data", MSG), ("pub", pk_hex.as_str())];
-        let res = client
-            .post(PYTHON_BACKEND)
-            .form(&params)
-            .send()
-            .unwrap()
-            .text()
+        let res = rt
+            .block_on(
+                client
+                    .post(PYTHON_BACKEND)
+                    .form(&params)
+                    .send()
+                    .then(|r| r.unwrap().text()),
+            )
             .unwrap();
 
         let server_encrypted = decode_hex(&res);
@@ -94,12 +128,14 @@ mod tests {
         let local_encrypted = encrypt(uncompressed_pk, MSG.as_bytes()).unwrap();
         let params = [("data", encode(local_encrypted)), ("prv", sk_hex)];
 
-        let res = client
-            .post(PYTHON_BACKEND)
-            .form(&params)
-            .send()
-            .unwrap()
-            .text()
+        let res = rt
+            .block_on(
+                client
+                    .post(PYTHON_BACKEND)
+                    .form(&params)
+                    .send()
+                    .then(|r| r.unwrap().text()),
+            )
             .unwrap();
 
         assert_eq!(res, MSG);

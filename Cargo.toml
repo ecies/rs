@@ -1,23 +1,28 @@
 [package]
 name = "ecies"
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
-version = "0.1.0"
+version = "0.1.3"
 license = "MIT"
-authors = ["Weiliang Li <to.be.impressive@gmail.com"]
+authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 edition = "2018"
 repository = "https://github.com/ecies/rs"
+documentation = "https://github.com/ecies/rs"
+homepage = "https://github.com/ecies/rs"
+readme = "README.md"
 
 [dependencies]
-rand = "0.6"
-libsecp256k1 = "0.3.2"
-hex ="0.4"
+rand = "0.7.3"
+libsecp256k1 = "0.3.4"
+hex ="0.4.0"
 openssl ="0.10"
-hkdf = "0.8"
-sha2 = "0.8"
+hkdf = "0.8.0"
+sha2 = "0.8.1"
 
 [dev-dependencies]
-reqwest = "0.9"
-criterion = "0.3"
+tokio = "0.2.9"
+reqwest = "0.10.1"
+criterion = "0.3.0"
+futures-util = "0.3.1"
 
 [[bench]]
 name = "simple"
