@@ -35,7 +35,7 @@ assert_eq!(
 
 ## Release Notes
 
-### 0.1.1 ~ 0.1.3
+### 0.1.1 ~ 0.1.4
 
 - Bump dependencies
 - Update documentation
