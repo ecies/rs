@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/repo
   docker:
-    - image: rust
+    - image: rust:stable
 
 jobs:
   test:
@@ -32,9 +32,18 @@ jobs:
       - run:
           name: Run all tests
           command: cargo test --all
-  deploy:
+
+  test-beta:
+    <<: *defaults
     docker:
-      - image: rust
+      - image: rust:beta
+
+  test-nightly:
+    <<: *defaults
+    docker:
+      - image: rust:nightly
+
+  deploy:
     <<: *defaults
     steps:
       - checkout
