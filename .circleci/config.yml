@@ -6,7 +6,7 @@ defaults: &defaults
     - image: rust:stable
 
 jobs:
-  test:
+  test: &test-template
     <<: *defaults
     steps:
       - checkout
@@ -34,12 +34,12 @@ jobs:
           command: cargo test --all
 
   test-beta:
-    <<: *defaults
+    <<: *test-template
     docker:
       - image: rust:beta
 
   test-nightly:
-    <<: *defaults
+    <<: *test-template
     docker:
       - image: rust:nightly
 
