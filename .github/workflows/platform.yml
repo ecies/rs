@@ -17,6 +17,12 @@ jobs:
       - uses: hecrj/setup-rust-action@v1
         with:
           rust-version: ${{ matrix.rust }}
+
       - uses: actions/checkout@master
+
+      - name: Install choco on windows
+        if: matrix.os == windows-latest
+        run: choco install openssl
+
       - name: Run tests
         run: cargo test --verbose
