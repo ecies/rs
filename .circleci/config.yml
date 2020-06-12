@@ -37,7 +37,6 @@ jobs:
     <<: *test-template
     docker:
       - image: instrumentisto/rust:beta
-
   test-nightly:
     <<: *test-template
     docker:
@@ -62,9 +61,19 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+      - test-beta:
+          filters:
+            tags:
+              only: /^v.*/
+      - test-nightly:
+          filters:
+            tags:
+              only: /^v.*/
       - deploy:
           requires:
             - test
+            - test-beta
+            - test-nightly
           filters:
             tags:
               only: /^v.*/
