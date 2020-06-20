@@ -1,12 +1,11 @@
-version: 2
+version: 2.1
 
 defaults: &defaults
-  working_directory: ~/repo
   docker:
     - image: rust
 
 jobs:
-  test:
+  test: &test-template
     <<: *defaults
     steps:
       - checkout
@@ -32,9 +31,17 @@ jobs:
       - run:
           name: Run all tests
           command: cargo test --all
-  deploy:
+
+  test-beta:
+    <<: *test-template
     docker:
-      - image: rust
+      - image: instrumentisto/rust:beta
+  test-nightly:
+    <<: *test-template
+    docker:
+      - image: rustlang/rust:nightly
+
+  deploy:
     <<: *defaults
     steps:
       - checkout
@@ -53,9 +60,19 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+      - test-beta:
+          filters:
+            tags:
+              only: /^v.*/
+      - test-nightly:
+          filters:
+            tags:
+              only: /^v.*/
       - deploy:
           requires:
             - test
+            - test-beta
+            - test-nightly
           filters:
             tags:
               only: /^v.*/
