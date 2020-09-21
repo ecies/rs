@@ -20,9 +20,18 @@ jobs:
 
       - uses: actions/checkout@master
 
-      - name: Install choco on windows
+      - name: Install openssl on windows
         if: matrix.os == 'windows-latest'
-        run: choco install openssl
+        run: vcpkg integrate install; vcpkg install openssl:x64-windows
+        env:
+          VCPKG_ROOT: 'C:\vcpkg'
+
+      - name: Build Win
+        if: matrix.os == 'windows-latest'
+        run: cargo build
+        env:
+          RUSTFLAGS: -Ctarget-feature=+crt-static
+          VCPKG_ROOT: 'C:\vcpkg'
 
       - name: Run tests
         run: cargo test --verbose
