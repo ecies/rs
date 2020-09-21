@@ -16,12 +16,12 @@ libsecp256k1 = "0.3.5"
 hex ="0.4.2"
 openssl ="0.10"
 hkdf = "0.9.0-alpha.0"
-sha2 = "0.9.0"
+sha2 = "0.9.1"
 
 [dev-dependencies]
-tokio = "0.2.21"
-reqwest = "0.10.6"
-criterion = "0.3.2"
+tokio = "0.2.22"
+reqwest = "0.10.7"
+criterion = "0.3.3"
 futures-util = "0.3.5"
 
 [[bench]]
