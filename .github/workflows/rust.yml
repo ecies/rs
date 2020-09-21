@@ -1,4 +1,4 @@
-name: Rust
+name: Test on different platforms
 
 on:
   pull_request:
@@ -11,18 +11,18 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        rust: [stable, nightly]
+        rust: [stable, beta]
 
     steps:
       - uses: hecrj/setup-rust-action@v1
         with:
           rust-version: ${{ matrix.rust }}
+
       - uses: actions/checkout@master
 
-      - name: Run tests on windows
-        if: matrix.os == 'windows-latest'
-        run: cargo test --verbose
+      - name: Install choco on windows
+        if: matrix.os == windows-latest
+        run: choco install openssl
 
-      - name: Run tests on *nix
+      - name: Run tests
         run: cargo test --verbose
-        if: matrix.os != 'windows-latest'
