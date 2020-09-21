@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@master
 
       - name: Install choco on windows
-        if: matrix.os == windows-latest
+        if: matrix.os == 'windows-latest'
         run: choco install openssl
 
       - name: Run tests
