@@ -1,7 +1,7 @@
 [package]
 name = "ecies"
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
-version = "0.1.4"
+version = "0.1.5"
 license = "MIT"
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 edition = "2018"
