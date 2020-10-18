@@ -20,9 +20,9 @@ sha2 = "0.9.1"
 
 [dev-dependencies]
 tokio = "0.2.22"
-reqwest = "0.10.7"
+reqwest = "0.10.8"
 criterion = "0.3.3"
-futures-util = "0.3.5"
+futures-util = "0.3.6"
 
 [[bench]]
 name = "simple"
