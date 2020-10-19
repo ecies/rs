@@ -72,7 +72,6 @@ workflows:
           requires:
             - test
             - test-beta
-            - test-nightly
           filters:
             tags:
               only: /^v.*/

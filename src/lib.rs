@@ -101,8 +101,6 @@ mod tests {
         use futures_util::FutureExt;
         use tokio::runtime::Runtime;
 
-        let mut rt = Runtime::new().unwrap();
-
         let (sk, pk) = generate_keypair();
 
         let sk_hex = encode(&sk.serialize().to_vec());
@@ -111,6 +109,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let params = [("data", MSG), ("pub", pk_hex.as_str())];
+
+        let mut rt = Runtime::new().unwrap();
         let res = rt
             .block_on(
                 client
