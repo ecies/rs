@@ -17,11 +17,31 @@
 //!     decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice()
 //! );
 //! ```
+//!
+//! # Optional pure Rust AES backend
+//!
+//! You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
+//!
+//! ```toml
+//! # ecies = {version = "0.2", feature = "openssl"}
+//! ecies = {version = "0.2", feature = "pure"}
+//! ```
+//!
+//! Due to [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
 
 pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
+/// Constant variables
+pub mod consts;
+/// Type aliases
+pub mod types;
 /// Utility functions for ecies
 pub mod utils;
+
+#[cfg(feature = "openssl")]
+mod openssl_aes;
+#[cfg(feature = "pure")]
+mod pure_aes;
 
 use utils::{aes_decrypt, aes_encrypt, decapsulate, encapsulate, generate_keypair};
 

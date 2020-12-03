@@ -23,6 +23,8 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError>
 ## Quick Start
 
 ```rust
+use ecies::{decrypt, encrypt, utils::generate_keypair};
+
 const MSG: &str = "helloworld";
 let (sk, pk) = generate_keypair();
 let (sk, pk) = (&sk.serialize(), &pk.serialize());
@@ -34,7 +36,22 @@ assert_eq!(
 );
 ```
 
+## Optional pure Rust AES backend
+
+You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
+
+```toml
+# ecies = {version = "0.2", feature = "openssl"}
+ecies = {version = "0.2", feature = "pure"}
+```
+
+Due to [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
+
 ## Release Notes
+
+### 0.2.0
+
+- Optional pure Rust AES backend
 
 ### 0.1.1 ~ 0.1.5
 
