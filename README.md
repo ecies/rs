@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs)
 [![Circle CI](https://img.shields.io/circleci/project/ecies/rs/master.svg)](https://circleci.com/gh/ecies/rs)
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
+[![Doc](https://docs.rs/ecies/badge.svg)](https://docs.rs/ecies/latest/ecies/)
 
 Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
 
@@ -35,7 +36,7 @@ assert_eq!(
 
 ## Release Notes
 
-### 0.1.1 ~ 0.1.4
+### 0.1.1 ~ 0.1.5
 
 - Bump dependencies
 - Update documentation
