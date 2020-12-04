@@ -1,8 +1,10 @@
 //! Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
 //!
+//! ECIES functionalities are built upon AES-GCM-256 and HKDF-SHA256.
+//!
 //! This is the Rust version of [eciespy](https://github.com/ecies/py).
 //!
-//! # Usage
+//! # Quick Start
 //!
 //! ```rust
 //! use ecies::{decrypt, encrypt, utils::generate_keypair};
@@ -27,7 +29,9 @@
 //! ecies = {version = "0.2", feature = "pure"}
 //! ```
 //!
-//! Due to [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
+//! Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
+//!
+//! Pure Rust implementation is sometimes useful, such as building a WASM target: `cargo build --no-default-features --features pure --target=wasm32-unknown-unknown`.
 
 pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
@@ -95,8 +99,8 @@ mod tests {
     const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
     const MSG: &str = "helloworld";
 
-    const BIG_MSG_SIZE: usize = 100 * 1024 * 1024;
-    const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE]; // 100 MB
+    const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
+    const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
     fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();

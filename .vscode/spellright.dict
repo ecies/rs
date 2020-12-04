@@ -10,3 +10,6 @@ eciesrs
 rng
 mut
 toml
+aes
+gcm
+wasm

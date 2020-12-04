@@ -8,17 +8,9 @@
 
 Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
 
+ECIES functionalities are built upon AES-GCM-256 and HKDF-SHA256.
+
 This is the Rust version of [eciespy](https://github.com/ecies/py).
-
-## API
-
-```rust
-pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError>
-```
-
-```rust
-pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError>
-```
 
 ## Quick Start
 
@@ -45,12 +37,34 @@ You can choose to use OpenSSL implementation or [pure Rust implementation](https
 ecies = {version = "0.2", feature = "pure"}
 ```
 
-Due to [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
+Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
+
+Pure Rust implementation is sometimes useful, such as building a WASM target: `cargo build --no-default-features --features pure --target=wasm32-unknown-unknown`.
+
+## Security notes
+
+### Why AES-GCM-256 and HKDF-SHA256
+
+AEAD scheme like AES-GCM-256 should be your first option for symmetric ciphers, with unique IVs in every encryption.
+
+For key derivation functions on shared point between two asymmetric keys, HKDFs are [proven](https://github.com/ecies/py/issues/82) to be more secure than simple hash functions like SHA256.
+
+### Cross-language compatibility
+
+All functionalities are mutually checked among [different languages](https://github.com/ecies): Python, Rust, JavaScript and Golang.
+
+### Security audit
+
+Following dependencies are audited:
+
+- [aes-gcm](https://research.nccgroup.com/2020/02/26/public-report-rustcrypto-aes-gcm-and-chacha20poly1305-implementation-review/)
+- [OpenSSL](https://ostif.org/the-ostif-and-quarkslab-audit-of-openssl-is-complete/)
 
 ## Release Notes
 
 ### 0.2.0
 
+- Revamp documentations
 - Optional pure Rust AES backend
 
 ### 0.1.1 ~ 0.1.5
