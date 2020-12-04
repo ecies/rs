@@ -41,7 +41,7 @@ pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     let key = GenericArray::from_slice(key);
     let aead = Aes256Gcm::new(key);
 
-    let iv = GenericArray::from_slice(&encrypted_msg[..AES_IV_LENGTH]); //nonce
+    let iv = GenericArray::from_slice(&encrypted_msg[..AES_IV_LENGTH]);
     let tag = GenericArray::from_slice(&encrypted_msg[AES_IV_LENGTH..AES_IV_PLUS_TAG_LENGTH]);
 
     let mut out = Vec::with_capacity(encrypted_msg.len() - AES_IV_PLUS_TAG_LENGTH);
