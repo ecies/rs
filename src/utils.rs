@@ -10,13 +10,16 @@ const AES_TAG_LENGTH: usize = 16;
 const AES_IV_PLUS_TAG_LENGTH: usize = AES_IV_LENGTH + AES_TAG_LENGTH;
 const EMPTY_BYTES: [u8; 0] = [];
 
+/// Type alias for `[u8; 32]`, which is a 256-bit key
 pub type AesKey = [u8; 32];
 
+/// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
     let sk = SecretKey::random(&mut thread_rng());
     (sk.clone(), PublicKey::from_secret_key(&sk))
 }
 
+/// Remove 0x prefix of a hex string
 pub fn remove0x(hex: &str) -> &str {
     if hex.starts_with("0x") || hex.starts_with("0X") {
         return &hex[2..];
@@ -24,10 +27,12 @@ pub fn remove0x(hex: &str) -> &str {
     hex
 }
 
+/// Convert hex string to u8 vector
 pub fn decode_hex(hex: &str) -> Vec<u8> {
     decode(remove0x(hex)).unwrap()
 }
 
+/// Calculate a shared AES key of our secret key and peer's public key by hkdf
 pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> AesKey {
     let mut shared_point = peer_pk.clone();
     shared_point.tweak_mul_assign(&sk).unwrap();
@@ -39,6 +44,7 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> AesKey {
     hkdf_sha256(master.as_slice())
 }
 
+/// Calculate a shared AES key of our public key and peer's secret key by hkdf
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> AesKey {
     let mut shared_point = pk.clone();
     shared_point.tweak_mul_assign(&peer_sk).unwrap();
@@ -50,6 +56,7 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> AesKey {
     hkdf_sha256(master.as_slice())
 }
 
+/// AES-256-GCM encryption wrapper
 pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let cipher = Cipher::aes_256_gcm();
 
@@ -70,6 +77,7 @@ pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     }
 }
 
+/// AES-256-GCM decryption wrapper
 pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     if encrypted_msg.len() < AES_IV_PLUS_TAG_LENGTH {
         return None;

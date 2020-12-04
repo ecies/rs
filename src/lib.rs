@@ -1,9 +1,36 @@
-use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
+//! Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
+//!
+//! This is the Rust version of [eciespy](https://github.com/ecies/py).
+//!
+//! # Usage
+//!
+//! ```rust
+//! use ecies::{decrypt, encrypt, utils::generate_keypair};
+//!
+//! const MSG: &str = "helloworld";
+//! let (sk, pk) = generate_keypair();
+//! let (sk, pk) = (&sk.serialize(), &pk.serialize());
+//!
+//! let msg = MSG.as_bytes();
+//! assert_eq!(
+//!     msg,
+//!     decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice()
+//! );
+//! ```
 
+pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
+
+/// Utility functions for ecies
 pub mod utils;
 
 use utils::{aes_decrypt, aes_encrypt, decapsulate, encapsulate, generate_keypair};
 
+/// Encrypt a message by a public key
+///
+/// # Arguments
+///
+/// * `receiver_pub` - The u8 array reference of a receiver's public key
+/// * `msg` - The u8 array reference of the message to encrypt
 pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_pk = PublicKey::parse_slice(receiver_pub, None)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
@@ -18,6 +45,12 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     Ok(cipher_text)
 }
 
+/// Decrypt a message by a secret key
+///
+/// # Arguments
+///
+/// * `receiver_sec` - The u8 array reference of a receiver's secret key
+/// * `msg` - The u8 array reference of the encrypted message
 pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_sk = SecretKey::parse_slice(receiver_sec)?;
 
