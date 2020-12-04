@@ -45,9 +45,9 @@ Pure Rust implementation is sometimes useful, such as building a WASM target: `c
 
 ### Why AES-GCM-256 and HKDF-SHA256
 
-AEAD scheme like AES-GCM-256 should be your first option for symmetric ciphers, with unique IVs in every encryption.
+AEAD scheme like AES-GCM-256 should be your first option for symmetric ciphers, with unique IVs in each encryption.
 
-For key derivation functions on shared point between two asymmetric keys, HKDFs are [proven](https://github.com/ecies/py/issues/82) to be more secure than simple hash functions like SHA256.
+For key derivation functions on shared points between two asymmetric keys, HKDFs are [proven](https://github.com/ecies/py/issues/82) to be more secure than simple hash functions like SHA256.
 
 ### Cross-language compatibility
 
