@@ -19,8 +19,8 @@ jobs:
           keys:
             - v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
-          name: Build all targets
-          command: cargo build --all --all-targets
+          name: Build debug
+          command: cargo build
       - save_cache:
           paths:
             - /usr/local/cargo/registry
@@ -29,8 +29,11 @@ jobs:
             - target/debug/deps
           key: v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
-          name: Run all tests
-          command: cargo test --all
+          name: Run pure rust tests
+          command: cargo test --no-default-features --features pure
+      - run:
+          name: Run openssl rust tests
+          command: cargo test --no-default-features --features openssl
 
   test-beta:
     <<: *test-template

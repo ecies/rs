@@ -1,6 +1,6 @@
 [package]
 name = "ecies"
-version = "0.1.5"
+version = "0.2.0"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
@@ -16,9 +16,19 @@ repository = "https://github.com/ecies/rs"
 hex = "0.4.2"
 hkdf = "0.10.0"
 libsecp256k1 = "0.3.5"
-openssl = "0.10"
 rand = "0.7.3"
 sha2 = "0.9.1"
+
+# pure rust
+aes-gcm = {version = "0.8.0", optional = true}
+cipher = {version = "0.2", optional = true}
+
+# openssl
+openssl = {version = "0.10", optional = true}
+
+[features]
+default = ["openssl"]
+pure = ["aes-gcm", "cipher"]
 
 [dev-dependencies]
 criterion = "0.3.3"
