@@ -25,8 +25,7 @@
 //! You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
 //!
 //! ```toml
-//! # ecies = {version = "0.2", feature = "openssl"}
-//! ecies = {version = "0.2", feature = "pure"}
+//! ecies = {version = "0.2", default-features = false, features = ["pure"]}
 //! ```
 //!
 //! Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
