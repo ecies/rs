@@ -13,3 +13,9 @@ toml
 aes
 gcm
 wasm
+Golang
+RUSTFLAGS
+Ctarget
+sse
+sandybridge
+ssse

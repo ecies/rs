@@ -19,8 +19,8 @@ jobs:
           keys:
             - v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
-          name: Build debug
-          command: cargo build
+          name: Build tests
+          command: cargo test --no-default-features --features pure --no-run
       - save_cache:
           paths:
             - /usr/local/cargo/registry

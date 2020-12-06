@@ -32,6 +32,8 @@
 //! Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
 //!
 //! Pure Rust implementation is sometimes useful, such as building a WASM target: `cargo build --no-default-features --features pure --target=wasm32-unknown-unknown`.
+//!
+//! If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
 
 pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
@@ -92,9 +94,11 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use hex::encode;
-    use utils::{decode_hex, generate_keypair};
+
+    use super::*;
+    use utils::generate_keypair;
+    use utils::tests::decode_hex;
 
     const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
     const MSG: &str = "helloworld";

@@ -41,6 +41,8 @@ Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243
 
 Pure Rust implementation is sometimes useful, such as building a WASM target: `cargo build --no-default-features --features pure --target=wasm32-unknown-unknown`.
 
+If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
+
 ## Security notes
 
 ### Why AES-GCM-256 and HKDF-SHA256

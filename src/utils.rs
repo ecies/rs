@@ -1,4 +1,3 @@
-use hex::decode;
 use hkdf::Hkdf;
 use rand::thread_rng;
 use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, PublicKey, SecretKey};
@@ -17,19 +16,6 @@ pub use crate::openssl_aes::{aes_decrypt, aes_encrypt};
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
     let sk = SecretKey::random(&mut thread_rng());
     (sk.clone(), PublicKey::from_secret_key(&sk))
-}
-
-/// Remove 0x prefix of a hex string
-pub fn remove0x(hex: &str) -> &str {
-    if hex.starts_with("0x") || hex.starts_with("0X") {
-        return &hex[2..];
-    }
-    hex
-}
-
-/// Convert hex string to u8 vector
-pub fn decode_hex(hex: &str) -> Vec<u8> {
-    decode(remove0x(hex)).unwrap()
 }
 
 /// Calculate a shared AES key of our secret key and peer's public key by hkdf
@@ -65,12 +51,27 @@ fn hkdf_sha256(master: &[u8]) -> AesKey {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
+    use hex::decode;
+
     use rand::{thread_rng, Rng};
     use secp256k1::Error;
 
     use super::*;
     use crate::consts::{AES_IV_LENGTH, EMPTY_BYTES};
+
+    /// Remove 0x prefix of a hex string
+    pub fn remove0x(hex: &str) -> &str {
+        if hex.starts_with("0x") || hex.starts_with("0X") {
+            return &hex[2..];
+        }
+        hex
+    }
+
+    /// Convert hex string to u8 vector
+    pub fn decode_hex(hex: &str) -> Vec<u8> {
+        decode(remove0x(hex)).unwrap()
+    }
 
     #[test]
     fn test_remove_0x_decode_hex() {
