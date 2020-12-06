@@ -94,22 +94,21 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
 
 #[cfg(test)]
 mod tests {
-    use hex::encode;
 
     use super::*;
     use utils::generate_keypair;
-    use utils::tests::decode_hex;
 
-    const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
     const MSG: &str = "helloworld";
 
     const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
     const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
-    fn test_enc_dec(sk: &[u8], pk: &[u8]) {
+    pub(super) fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
         assert_eq!(msg, decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice());
+    }
 
+    pub(super) fn test_enc_dec_big(sk: &[u8], pk: &[u8]) {
         let msg = &BIG_MSG;
         assert_eq!(msg.to_vec(), decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap());
     }
@@ -158,9 +157,22 @@ mod tests {
     }
 
     #[test]
+    fn test_compressed_public_big_msg() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
+        test_enc_dec_big(sk, pk);
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_against_python() {
         use futures_util::FutureExt;
+        use hex::encode;
         use tokio::runtime::Runtime;
+
+        use utils::tests::decode_hex;
+
+        const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
 
         let (sk, pk) = generate_keypair();
 
@@ -200,5 +212,21 @@ mod tests {
             .unwrap();
 
         assert_eq!(res, MSG);
+    }
+}
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod wasm_tests {
+    use super::generate_keypair;
+    use super::tests::{test_enc_dec, test_enc_dec_big};
+
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_wasm() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize());
+        test_enc_dec(sk, pk);
+        test_enc_dec_big(sk, pk);
     }
 }

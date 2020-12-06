@@ -34,6 +34,12 @@ jobs:
       - run:
           name: Run openssl rust tests
           command: cargo test --no-default-features --features openssl
+      - run:
+          name: Install wasm dep
+          command: cargo install wasm-bindgen-cli
+      - run:
+          name: Run wasm test
+          command: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
 
   test-beta:
     <<: *test-template
