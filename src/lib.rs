@@ -33,7 +33,7 @@
 //!
 //! Pure Rust implementation is sometimes useful, such as building a WASM target: `cargo build --no-default-features --features pure --target=wasm32-unknown-unknown`.
 //!
-//! If you are using the pure Rust backend on modern CPUs, consider build with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
+//! If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
 
 pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
