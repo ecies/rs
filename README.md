@@ -42,6 +42,10 @@ Pure Rust implementation is sometimes useful, such as building a WASM target: `c
 
 If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
 
+## Wasm compatibility
+
+If pure Rust implementation is selected, it's possible to build on the `wasm32-unknown-unknown` target. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
+
 ## Security notes
 
 ### Why AES-GCM-256 and HKDF-SHA256

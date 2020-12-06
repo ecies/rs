@@ -18,6 +18,7 @@ jobs:
       - restore_cache:
           keys:
             - v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - v4-cargo-cache-
       - run:
           name: Build tests
           command: cargo test --no-default-features --features pure --no-run
@@ -34,21 +35,48 @@ jobs:
       - run:
           name: Run openssl rust tests
           command: cargo test --no-default-features --features openssl
-      - run:
-          name: Install wasm dep
-          command: cargo install wasm-bindgen-cli
-      - run:
-          name: Run wasm test
-          command: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
 
   test-beta:
     <<: *test-template
     docker:
       - image: instrumentisto/rust:beta
+
   test-nightly:
     <<: *test-template
     docker:
       - image: rustlang/rust:nightly
+
+  test-wasm:
+    docker:
+      - image: cimg/rust:1.48.0-node
+    steps:
+      - checkout
+      - run:
+          name: Install openssl
+          command: sudo apt-get update -y && sudo apt-get -y install pkg-config libssl-dev
+      - run:
+          name: Calculate dependencies
+          command: cargo generate-lockfile
+      - restore_cache:
+          keys:
+            - v4-cargo-cache-wasm-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - v4-cargo-cache-wasm-
+      - run:
+          name: Install wasm dep
+          command: rustup target add wasm32-unknown-unknown; cargo install wasm-bindgen-cli
+      - run:
+          name: Build wasm test
+          command: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown --no-run
+      - save_cache:
+          paths:
+            - ~/.cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+          key: v4-cargo-cache-wasm-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Run wasm test
+          command: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
 
   deploy:
     <<: *defaults
@@ -77,9 +105,14 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+      - test-wasm:
+          filters:
+            tags:
+              only: /^v.*/
       - deploy:
           requires:
             - test
+            - test-wasm
             - test-beta
           filters:
             tags:
