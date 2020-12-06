@@ -30,9 +30,17 @@
 //!
 //! Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
 //!
-//! Pure Rust implementation is sometimes useful, such as building a WASM target: `cargo build --no-default-features --features pure --target=wasm32-unknown-unknown`.
+//! Pure Rust implementation is sometimes useful, such as building on WASM:
+//!
+//! ```bash
+//! cargo build --no-default-features --features pure --target=wasm32-unknown-unknown
+//! ```
 //!
 //! If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
+//!
+//! # Wasm compatibility
+//!
+//! It's also possible to build on the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
 pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
