@@ -30,9 +30,17 @@
 //!
 //! Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
 //!
-//! Pure Rust implementation is sometimes useful, such as building a WASM target: `cargo build --no-default-features --features pure --target=wasm32-unknown-unknown`.
+//! Pure Rust implementation is sometimes useful, such as building on WASM:
+//!
+//! ```bash
+//! cargo build --no-default-features --features pure --target=wasm32-unknown-unknown
+//! ```
 //!
 //! If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
+//!
+//! # Wasm compatibility
+//!
+//! It's also possible to build on the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
 pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
@@ -93,22 +101,21 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
 
 #[cfg(test)]
 mod tests {
-    use hex::encode;
 
     use super::*;
     use utils::generate_keypair;
-    use utils::tests::decode_hex;
 
-    const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
     const MSG: &str = "helloworld";
 
     const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
     const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
-    fn test_enc_dec(sk: &[u8], pk: &[u8]) {
+    pub(super) fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
         assert_eq!(msg, decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap().as_slice());
+    }
 
+    pub(super) fn test_enc_dec_big(sk: &[u8], pk: &[u8]) {
         let msg = &BIG_MSG;
         assert_eq!(msg.to_vec(), decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap());
     }
@@ -157,9 +164,22 @@ mod tests {
     }
 
     #[test]
+    fn test_compressed_public_big_msg() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
+        test_enc_dec_big(sk, pk);
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_against_python() {
         use futures_util::FutureExt;
+        use hex::encode;
         use tokio::runtime::Runtime;
+
+        use utils::tests::decode_hex;
+
+        const PYTHON_BACKEND: &str = "https://eciespy.herokuapp.com/";
 
         let (sk, pk) = generate_keypair();
 
@@ -199,5 +219,21 @@ mod tests {
             .unwrap();
 
         assert_eq!(res, MSG);
+    }
+}
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod wasm_tests {
+    use super::generate_keypair;
+    use super::tests::{test_enc_dec, test_enc_dec_big};
+
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_wasm() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize());
+        test_enc_dec(sk, pk);
+        test_enc_dec_big(sk, pk);
     }
 }
