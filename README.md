@@ -44,9 +44,9 @@ Pure Rust implementation is sometimes useful, such as building on WASM:
 cargo build --no-default-features --features pure --target=wasm32-unknown-unknown
 ```
 
-If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption.
+If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption. This would be no longer necessary when `aes-gcm` supports automatic CPU detection.
 
-## Wasm compatibility
+## WASM compatibility
 
 It's also possible to build on the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
@@ -75,6 +75,7 @@ Following dependencies are audited:
 
 - Revamp documentations
 - Optional pure Rust AES backend
+- WASM support
 
 ### 0.1.1 ~ 0.1.5
 
