@@ -5,6 +5,13 @@ version = "0.2.0"
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
 edition = "2018"
+keywords = [
+  "secp256k1",
+  "crypto",
+  "elliptic curves",
+  "ecies",
+  "cryptocurrency",
+]
 license = "MIT"
 readme = "README.md"
 # links
