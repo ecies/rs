@@ -8,7 +8,7 @@ edition = "2018"
 keywords = [
   "secp256k1",
   "crypto",
-  "elliptic curves",
+  "ecc",
   "ecies",
   "cryptocurrency",
 ]
