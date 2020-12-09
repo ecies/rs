@@ -17,14 +17,13 @@ jobs:
           toolchain: stable
           override: true
           target: wasm32-unknown-unknown
-          components: rustfmt, clippy
       - uses: actions/setup-node@v1
         with:
           node-version: 14
-      - name: Check versions
-        run: rustc --version; node --version; cargo generate-lockfile
-      - name: Cache cargo folder
-        uses: actions/cache@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/registry
