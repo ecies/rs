@@ -1,0 +1,45 @@
+name: Publish
+
+on:
+  release:
+    types: [created]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          target: wasm32-unknown-unknown
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+            target
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install wasm dep
+        run: cargo install wasm-bindgen-cli || true
+      - name: Run openssl tests
+        run: cargo test
+      - name: Run pure rust tests
+        run: cargo test --no-default-features --features pure
+      - name: Run wasm tests
+        run: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
+      - name: Publish cargo package
+        run: cargo login $CARGO_LOGIN_TOKEN && cargo publish
+        env:
+          CARGO_LOGIN_TOKEN: ${{ secrets.CARGO_LOGIN_TOKEN }}
