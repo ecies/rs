@@ -21,6 +21,9 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
           components: rustfmt, clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
       - name: Cache cargo folder
         uses: actions/cache@v2
         with:
