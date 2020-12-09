@@ -1,0 +1,69 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          target: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - name: Cache cargo folder
+        uses: actions/cache@v2
+        with:
+          path: |
+            target
+          key: ${{ runner.os }}-nightly-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          target: wasm32-unknown-unknown
+      - name: Check versions
+        run: rustc --version; node --version; cargo generate-lockfile
+      - name: Cache cargo folder
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+            target
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install wasm dep
+        run: cargo install wasm-bindgen-cli || true
+      - name: Run openssl tests
+        run: cargo test
+      - name: Run pure rust tests
+        run: cargo test --no-default-features --features pure
+      - name: Run wasm tests
+        run: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
+      - name: Check cargo package
+        run: cargo publish --dry-run

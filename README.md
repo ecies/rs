@@ -2,7 +2,7 @@
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1c6d6ed949dd4836ab97421039e8be75)](https://www.codacy.com/app/ecies/rs)
 [![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs)
-[![Circle CI](https://img.shields.io/circleci/project/ecies/rs/master.svg)](https://circleci.com/gh/ecies/rs)
+[![CI](https://github.com/ecies/rs/workflows/Build/badge.svg)](https://github.com/ecies/rs/actions)
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
 [![Doc](https://docs.rs/ecies/badge.svg)](https://docs.rs/ecies/latest/ecies/)
 
