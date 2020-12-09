@@ -24,12 +24,11 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: generate-lockfile
-      - name: Cache cargo folder
-        uses: actions/cache@v2
+      - uses: actions/cache@v2
         with:
           path: |
             target
-          key: ${{ runner.os }}-nightly-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-lint-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -49,10 +48,13 @@ jobs:
           toolchain: stable
           override: true
           target: wasm32-unknown-unknown
-      - name: Check versions
-        run: rustc --version; node --version; cargo generate-lockfile
-      - name: Cache cargo folder
-        uses: actions/cache@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/registry
