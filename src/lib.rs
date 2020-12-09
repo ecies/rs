@@ -4,6 +4,8 @@
 //!
 //! This is the Rust version of [eciespy](https://github.com/ecies/py).
 //!
+//! This library can be compiled to the WASM target at your option, see [WASM compatibility](#wasm-compatibility).
+//!
 //! # Quick Start
 //!
 //! ```rust
@@ -36,11 +38,17 @@
 //! cargo build --no-default-features --features pure --target=wasm32-unknown-unknown
 //! ```
 //!
-//! If you select the pure Rust backend on modern CPUs, consider building with `RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"` to speed up AES encryption/decryption. This would be no longer necessary when `aes-gcm` supports automatic CPU detection.
+//! If you select the pure Rust backend on modern CPUs, consider building with
+//!
+//! ```bash
+//! RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
+//! ```
+//!
+//! to speed up AES encryption/decryption. This would be no longer necessary when [`aes-gcm` supports automatic CPU detection](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
 //!
 //! # WASM compatibility
 //!
-//! It's also possible to build on the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
+//! It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
 pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
