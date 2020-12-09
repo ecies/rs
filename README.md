@@ -81,7 +81,7 @@ Following dependencies are audited:
 
 ### 0.2.0
 
-- Revamp documentations
+- Revamp documentation
 - Optional pure Rust AES backend
 - WASM compatibility
 
