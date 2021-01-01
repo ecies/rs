@@ -5,6 +5,7 @@
 [![CI](https://img.shields.io/github/workflow/status/ecies/rs/Build)](https://github.com/ecies/rs/actions)
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
 [![Doc](https://docs.rs/ecies/badge.svg)](https://docs.rs/ecies/latest/ecies/)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fecies%2Frs.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fecies%2Frs?ref=badge_shield)
 
 Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
 
@@ -94,3 +95,7 @@ Following dependencies are audited:
 ### 0.1.0
 
 - First beta version release
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fecies%2Frs.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fecies%2Frs?ref=badge_large)
