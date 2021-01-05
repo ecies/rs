@@ -1,6 +1,6 @@
 [package]
 name = "ecies"
-version = "0.2.0"
+version = "0.2.1"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
@@ -50,8 +50,8 @@ wasm-bindgen-test = "0.3.19"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 futures-util = "0.3.8"
-reqwest = "0.10.9"
-tokio = "0.2.22"
+reqwest = "0.10.10"
+tokio = "0.2.24"
 
 [[bench]]
 harness = false
