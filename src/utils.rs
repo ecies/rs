@@ -27,7 +27,7 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpEr
     master.extend(PublicKey::from_secret_key(&sk).serialize().iter());
     master.extend(shared_point.serialize().iter());
 
-    Ok(hkdf_sha256(master.as_slice()))
+    hkdf_sha256(master.as_slice())
 }
 
 /// Calculate a shared AES key of our public key and peer's secret key by hkdf
@@ -39,15 +39,16 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<AesKey, SecpEr
     master.extend(pk.serialize().iter());
     master.extend(shared_point.serialize().iter());
 
-    Ok(hkdf_sha256(master.as_slice()))
+    hkdf_sha256(master.as_slice())
 }
 
 // private below
-fn hkdf_sha256(master: &[u8]) -> AesKey {
+fn hkdf_sha256(master: &[u8]) -> Result<AesKey, SecpError> {
     let h = Hkdf::<Sha256>::new(None, master);
     let mut out = [0u8; 32];
-    h.expand(&EMPTY_BYTES, &mut out).unwrap();
-    out
+    h.expand(&EMPTY_BYTES, &mut out)
+        .map_err(|_| SecpError::InvalidInputLength)?;
+    Ok(out)
 }
 
 #[cfg(test)]
