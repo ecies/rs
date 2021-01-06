@@ -1,7 +1,8 @@
 use hkdf::Hkdf;
 use rand::thread_rng;
-use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, PublicKey, SecretKey};
+use secp256k1::{ PublicKey, SecretKey};
 use sha2::Sha256;
+pub use secp256k1_core::util::FULL_PUBLIC_KEY_SIZE;
 
 use crate::consts::EMPTY_BYTES;
 use crate::types::AesKey;

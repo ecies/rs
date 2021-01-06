@@ -50,7 +50,8 @@
 //!
 //! It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
-pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
+pub use secp256k1::{ Error as SecpError, PublicKey, SecretKey};
+pub use secp256k1_core::util::FULL_PUBLIC_KEY_SIZE;
 
 /// Constant variables
 pub mod consts;
