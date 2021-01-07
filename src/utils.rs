@@ -1,8 +1,7 @@
 use hkdf::Hkdf;
 use rand::thread_rng;
-use secp256k1::{ PublicKey, SecretKey};
+use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 use sha2::Sha256;
-pub use secp256k1_core::util::FULL_PUBLIC_KEY_SIZE;
 
 use crate::consts::EMPTY_BYTES;
 use crate::types::AesKey;
@@ -20,9 +19,9 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 }
 
 /// Calculate a shared AES key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> AesKey {
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpError> {
     let mut shared_point = peer_pk.clone();
-    shared_point.tweak_mul_assign(&sk).unwrap();
+    shared_point.tweak_mul_assign(&sk)?;
 
     let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
     master.extend(PublicKey::from_secret_key(&sk).serialize().iter());
@@ -32,9 +31,9 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> AesKey {
 }
 
 /// Calculate a shared AES key of our public key and peer's secret key by hkdf
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> AesKey {
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<AesKey, SecpError> {
     let mut shared_point = pk.clone();
-    shared_point.tweak_mul_assign(&peer_sk).unwrap();
+    shared_point.tweak_mul_assign(&peer_sk)?;
 
     let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
     master.extend(pk.serialize().iter());
@@ -44,11 +43,12 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> AesKey {
 }
 
 // private below
-fn hkdf_sha256(master: &[u8]) -> AesKey {
+fn hkdf_sha256(master: &[u8]) -> Result<AesKey, SecpError> {
     let h = Hkdf::<Sha256>::new(None, master);
     let mut out = [0u8; 32];
-    h.expand(&EMPTY_BYTES, &mut out).unwrap();
-    out
+    h.expand(&EMPTY_BYTES, &mut out)
+        .map_err(|_| SecpError::InvalidInputLength)?;
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -177,7 +177,7 @@ pub(crate) mod tests {
 
         assert_eq!(encapsulate(&sk2, &pk3), decapsulate(&pk2, &sk3));
         assert_eq!(
-            encapsulate(&sk2, &pk3).to_vec(),
+            encapsulate(&sk2, &pk3).map(|v| v.to_vec()).unwrap(),
             decode_hex("6f982d63e8590c9d9b5b4c1959ff80315d772edd8f60287c9361d548d5200f82")
         );
     }

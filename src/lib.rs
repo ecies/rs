@@ -50,8 +50,7 @@
 //!
 //! It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
-pub use secp256k1::{ Error as SecpError, PublicKey, SecretKey};
-pub use secp256k1_core::util::FULL_PUBLIC_KEY_SIZE;
+pub use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 
 /// Constant variables
 pub mod consts;
@@ -77,7 +76,7 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_pk = PublicKey::parse_slice(receiver_pub, None)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
-    let aes_key = encapsulate(&ephemeral_sk, &receiver_pk);
+    let aes_key = encapsulate(&ephemeral_sk, &receiver_pk)?;
     let encrypted = aes_encrypt(&aes_key, msg).ok_or(SecpError::InvalidMessage)?;
 
     let mut cipher_text = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE + encrypted.len());
@@ -103,7 +102,7 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let ephemeral_pk = PublicKey::parse_slice(&msg[..FULL_PUBLIC_KEY_SIZE], None)?;
     let encrypted = &msg[FULL_PUBLIC_KEY_SIZE..];
 
-    let aes_key = decapsulate(&ephemeral_pk, &receiver_sk);
+    let aes_key = decapsulate(&ephemeral_pk, &receiver_sk)?;
 
     aes_decrypt(&aes_key, encrypted).ok_or(SecpError::InvalidMessage)
 }
@@ -199,7 +198,7 @@ mod tests {
         let client = reqwest::Client::new();
         let params = [("data", MSG), ("pub", pk_hex.as_str())];
 
-        let mut rt = Runtime::new().unwrap();
+        let rt = Runtime::new().unwrap();
         let res = rt
             .block_on(
                 client

@@ -1,6 +1,6 @@
 [package]
 name = "ecies"
-version = "0.2.0"
+version = "0.2.1"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
@@ -27,15 +27,15 @@ secp256k1-core = {package = "libsecp256k1-core", path = "../libsecp256k1-rs/core
 sha2 = "0.9.2"
 
 # openssl aes
-openssl = {version = "0.10.31", optional = true}
+openssl = {version = "0.10.32", optional = true}
 
 # pure rust aes
 aes-gcm = {version = "0.8.0", optional = true}
-typenum = {version = "1.12", optional = true}
+typenum = {version = "1.12.0", optional = true}
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = {version = "0.2.0", features = ["js"]}
-rand = {version = "0.8.0", features = ["getrandom"]}
+getrandom = {version = "0.2.1", features = ["js"]}
+rand = {version = "0.8.1", features = ["getrandom"]}
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rand = {version = "0.8.0"}
@@ -53,8 +53,8 @@ wasm-bindgen-test = "0.3.19"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 futures-util = "0.3.8"
-reqwest = "0.10.9"
-tokio = "0.2.22"
+reqwest = "0.11.0"
+tokio = {version = "1.0.1", features = ["rt-multi-thread"]}
 
 [[bench]]
 harness = false
