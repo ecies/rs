@@ -198,7 +198,7 @@ mod tests {
         let client = reqwest::Client::new();
         let params = [("data", MSG), ("pub", pk_hex.as_str())];
 
-        let mut rt = Runtime::new().unwrap();
+        let rt = Runtime::new().unwrap();
         let res = rt
             .block_on(
                 client
