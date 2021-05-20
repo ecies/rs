@@ -58,7 +58,7 @@ to speed up AES encryption/decryption. This would be no longer necessary when [`
 
 It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
-## Security notes
+## Security
 
 ### Why AES-GCM-256 and HKDF-SHA256
 
@@ -78,6 +78,10 @@ Following dependencies are audited:
 - [OpenSSL](https://ostif.org/the-ostif-and-quarkslab-audit-of-openssl-is-complete/)
 
 ## Release Notes
+
+### 0.2.1
+
+- Revamp error handling
 
 ### 0.2.0
 
