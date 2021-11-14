@@ -36,5 +36,5 @@ pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     let tag = &encrypted_msg[AES_IV_LENGTH..AES_IV_PLUS_TAG_LENGTH];
     let encrypted = &encrypted_msg[AES_IV_PLUS_TAG_LENGTH..];
 
-    decrypt_aead(cipher, key, Some(&iv), &EMPTY_BYTES, encrypted, tag).ok()
+    decrypt_aead(cipher, key, Some(iv), &EMPTY_BYTES, encrypted, tag).ok()
 }
