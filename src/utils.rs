@@ -1,6 +1,6 @@
 use hkdf::Hkdf;
 use rand::thread_rng;
-use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
+use libsecp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 use sha2::Sha256;
 
 use crate::consts::EMPTY_BYTES;
@@ -56,7 +56,7 @@ pub(crate) mod tests {
     use hex::decode;
 
     use rand::{thread_rng, Rng};
-    use secp256k1::Error;
+    use libsecp256k1::Error;
 
     use super::*;
     use crate::consts::{AES_IV_LENGTH, EMPTY_BYTES};
