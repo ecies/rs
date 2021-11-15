@@ -9,7 +9,7 @@ env:
 
 jobs:
   publish:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -19,7 +19,7 @@ jobs:
           target: wasm32-unknown-unknown
       - uses: actions/setup-node@v1
         with:
-          node-version: 14
+          node-version: 16
       - uses: actions-rs/cargo@v1
         with:
           command: generate-lockfile
