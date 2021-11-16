@@ -77,7 +77,68 @@ Following dependencies are audited:
 - [aes-gcm](https://research.nccgroup.com/2020/02/26/public-report-rustcrypto-aes-gcm-and-chacha20poly1305-implementation-review/)
 - [OpenSSL](https://ostif.org/the-ostif-and-quarkslab-audit-of-openssl-is-complete/)
 
+## Benchmark
+
+The result shows that the pure Rust backend is around 20% ~ 50% slower compared to OpenSSL on MacBook Pro mid-2015 (2.8 GHz Quad-Core Intel Core i7).
+
+### OpenSSL backend
+
+```bash
+$ cargo bench --no-default-features --features openssl
+encrypt 100M            time:   [110.25 ms 115.77 ms 120.22 ms]
+                        change: [-10.123% -3.0504% +4.2342%] (p = 0.44 > 0.05)
+                        No change in performance detected.
+
+encrypt 200M            time:   [435.22 ms 450.50 ms 472.17 ms]
+                        change: [-7.5254% +3.6572% +14.508%] (p = 0.56 > 0.05)
+                        No change in performance detected.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+decrypt 100M            time:   [60.439 ms 66.276 ms 70.959 ms]
+                        change: [+0.1986% +7.7620% +15.995%] (p = 0.08 > 0.05)
+                        No change in performance detected.
+
+decrypt 200M            time:   [182.10 ms 185.85 ms 190.63 ms]
+                        change: [-4.8452% +5.2114% +16.370%] (p = 0.40 > 0.05)
+                        No change in performance detected.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+
+```
+
+### Pure Rust backend
+
+```bash
+$ export RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
+$ cargo bench --no-default-features --features pure
+encrypt 100M            time:   [196.85 ms 201.97 ms 205.67 ms]
+                        change: [-9.8235% -7.9098% -5.9849%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) low severe
+
+encrypt 200M            time:   [554.62 ms 585.01 ms 599.71 ms]
+                        change: [-15.036% -11.698% -8.6460%] (p = 0.00 < 0.05)
+                        Performance has improved.
+
+decrypt 100M            time:   [131.26 ms 134.39 ms 140.54 ms]
+                        change: [-3.9509% +2.9485% +10.198%] (p = 0.42 > 0.05)
+                        No change in performance detected.
+
+decrypt 200M            time:   [288.13 ms 296.64 ms 311.78 ms]
+                        change: [-16.887% -13.038% -8.6679%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+```
+
 ## Release Notes
+
+### 0.2.2
+
+- Bump dependencies
+- Migrate to edition 2021
 
 ### 0.2.1
 
