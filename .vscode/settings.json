@@ -4,7 +4,6 @@
   "rust-analyzer.cargo.features": ["pure"],
   "rust-analyzer.cargo.noDefaultFeatures": true,
   "rust-analyzer.procMacro.enable": true,
-  "rust-analyzer.cargo.loadOutDirsFromCheck": true,
   "spellright.ignoreFiles": [
     "~/.cargo/",
     "~/.rustup/",

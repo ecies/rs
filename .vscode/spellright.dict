@@ -26,3 +26,5 @@ typenum
 rs
 ecc
 rt
+js
+getrandom

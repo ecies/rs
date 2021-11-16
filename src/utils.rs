@@ -1,6 +1,6 @@
 use hkdf::Hkdf;
+use libsecp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 use rand::thread_rng;
-use secp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
 use sha2::Sha256;
 
 use crate::consts::EMPTY_BYTES;
@@ -15,16 +15,16 @@ pub use crate::openssl_aes::{aes_decrypt, aes_encrypt};
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
     let sk = SecretKey::random(&mut thread_rng());
-    (sk.clone(), PublicKey::from_secret_key(&sk))
+    (sk, PublicKey::from_secret_key(&sk))
 }
 
 /// Calculate a shared AES key of our secret key and peer's public key by hkdf
 pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpError> {
-    let mut shared_point = peer_pk.clone();
-    shared_point.tweak_mul_assign(&sk)?;
+    let mut shared_point = *peer_pk;
+    shared_point.tweak_mul_assign(sk)?;
 
     let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
-    master.extend(PublicKey::from_secret_key(&sk).serialize().iter());
+    master.extend(PublicKey::from_secret_key(sk).serialize().iter());
     master.extend(shared_point.serialize().iter());
 
     hkdf_sha256(master.as_slice())
@@ -32,8 +32,8 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpEr
 
 /// Calculate a shared AES key of our public key and peer's secret key by hkdf
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<AesKey, SecpError> {
-    let mut shared_point = pk.clone();
-    shared_point.tweak_mul_assign(&peer_sk)?;
+    let mut shared_point = *pk;
+    shared_point.tweak_mul_assign(peer_sk)?;
 
     let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
     master.extend(pk.serialize().iter());
@@ -55,8 +55,8 @@ fn hkdf_sha256(master: &[u8]) -> Result<AesKey, SecpError> {
 pub(crate) mod tests {
     use hex::decode;
 
+    use libsecp256k1::Error;
     use rand::{thread_rng, Rng};
-    use secp256k1::Error;
 
     use super::*;
     use crate::consts::{AES_IV_LENGTH, EMPTY_BYTES};
