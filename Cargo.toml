@@ -20,9 +20,9 @@ homepage = "https://ecies.org/rs/"
 repository = "https://github.com/ecies/rs"
 
 [dependencies]
-hkdf = "0.11.0"
+hkdf = "0.12.2"
 libsecp256k1 = "0.7.0"
-sha2 = "0.9.8"
+sha2 = "0.10.1"
 
 # openssl aes
 openssl = {version = "0.10.38", optional = true}

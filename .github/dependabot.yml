@@ -5,10 +5,3 @@ updates:
   schedule:
     interval: daily
   open-pull-requests-limit: 10
-  ignore:
-  - dependency-name: rand
-    versions:
-    - ">= 0.8.a, < 0.9"
-  - dependency-name: tokio
-    versions:
-    - ">= 0.3.a, < 0.4"
