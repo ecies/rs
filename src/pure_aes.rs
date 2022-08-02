@@ -1,5 +1,5 @@
-use aes_gcm::aead::{generic_array::GenericArray, AeadInPlace, NewAead};
-use aes_gcm::{aes::Aes256, AesGcm};
+use aes_gcm::aead::{generic_array::GenericArray, AeadInPlace};
+use aes_gcm::{aes::Aes256, AesGcm, KeyInit};
 use rand::{thread_rng, Rng};
 use typenum::consts::U16;
 
