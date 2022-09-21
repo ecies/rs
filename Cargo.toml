@@ -21,7 +21,7 @@ repository = "https://github.com/ecies/rs"
 
 [dependencies]
 hkdf = "0.12.3"
-libsecp256k1 = "0.7.0"
+libsecp256k1 = "0.7.1"
 sha2 = "0.10.2"
 
 # openssl aes
@@ -43,11 +43,11 @@ default = ["openssl"]
 pure = ["aes-gcm", "typenum"]
 
 [dev-dependencies]
-criterion = "0.3.6"
+criterion = {version = "0.4.0", default-features = false}
 hex = "0.4.3"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.30"
+wasm-bindgen-test = "0.3.32"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 futures-util = "0.3.21"
