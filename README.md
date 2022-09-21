@@ -135,14 +135,11 @@ Found 1 outliers among 10 measurements (10.00%)
 
 ## Release Notes
 
-### 0.2.2
-
-- Bump dependencies
-- Migrate to edition 2021
-
-### 0.2.1
+### 0.2.1 ~ 0.2.3
 
 - Revamp error handling
+- Migrate to edition 2021
+- Bump dependencies
 
 ### 0.2.0
 
