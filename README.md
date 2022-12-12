@@ -1,6 +1,6 @@
 # eciesrs
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1c6d6ed949dd4836ab97421039e8be75)](https://www.codacy.com/app/ecies/rs)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1c6d6ed949dd4836ab97421039e8be75)](https://app.codacy.com/gh/ecies/rs/dashboard)
 [![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs)
 [![CI](https://img.shields.io/github/workflow/status/ecies/rs/Build)](https://github.com/ecies/rs/actions)
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
