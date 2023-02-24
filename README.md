@@ -35,7 +35,7 @@ assert_eq!(
 You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
 
 ```toml
-ecies = {version = "0.2", default-features = false, features = ["pure"]}
+ecies = {version = "0.3", default-features = false, features = ["pure"]}
 ```
 
 Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
@@ -56,7 +56,7 @@ to speed up AES encryption/decryption. This would be no longer necessary when [`
 ## Optional XChaCha20-Poly1305 backend. 
 
 ```toml
-ecies = {version = "0.2", default-features = false, features = ["stream"]}
+ecies = {version = "0.3", default-features = false, features = ["stream"]}
 ```
 
 
