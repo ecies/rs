@@ -64,10 +64,7 @@ mod openssl_aes;
 #[cfg(feature = "pure")]
 mod pure_aes;
 
-#[cfg(feature = "chacha20poly1305")]
-mod xchacha20poly1305;
-
-use utils::{decapsulate, encapsulate, generate_keypair, symmetric_decrypt, symmetric_encrypt};
+use utils::{aes_decrypt, aes_encrypt, decapsulate, encapsulate, generate_keypair};
 
 /// Encrypt a message by a public key
 ///
@@ -80,7 +77,7 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
     let aes_key = encapsulate(&ephemeral_sk, &receiver_pk)?;
-    let encrypted = symmetric_encrypt(&aes_key, msg).ok_or(SecpError::InvalidMessage)?;
+    let encrypted = aes_encrypt(&aes_key, msg).ok_or(SecpError::InvalidMessage)?;
 
     let mut cipher_text = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE + encrypted.len());
     cipher_text.extend(ephemeral_pk.serialize().iter());
@@ -107,7 +104,7 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
 
     let aes_key = decapsulate(&ephemeral_pk, &receiver_sk)?;
 
-    symmetric_decrypt(&aes_key, encrypted).ok_or(SecpError::InvalidMessage)
+    aes_decrypt(&aes_key, encrypted).ok_or(SecpError::InvalidMessage)
 }
 
 #[cfg(test)]
@@ -183,7 +180,6 @@ mod tests {
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(any(pure, openssl_aes))]
     fn test_against_python() {
         use futures_util::FutureExt;
         use hex::encode;

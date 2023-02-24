@@ -7,13 +7,10 @@ use crate::consts::EMPTY_BYTES;
 use crate::types::AesKey;
 
 #[cfg(feature = "pure")]
-pub use crate::pure_aes::{symmetric_decrypt, symmetric_encrypt};
+pub use crate::pure_aes::{aes_decrypt, aes_encrypt};
 
 #[cfg(feature = "openssl")]
-pub use crate::openssl_aes::{symmetric_decrypt, symmetric_encrypt};
-
-#[cfg(feature = "stream")]
-pub use crate::xchacha20poly1305::{symmetric_decrypt, symmetric_encrypt};
+pub use crate::openssl_aes::{aes_decrypt, aes_encrypt};
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
@@ -95,9 +92,9 @@ pub(crate) mod tests {
 
     #[test]
     fn test_attempt_to_decrypt_invalid_message() {
-        assert!(symmetric_decrypt(&[], &[]).is_none());
+        assert!(aes_decrypt(&[], &[]).is_none());
 
-        assert!(symmetric_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
+        assert!(aes_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
     }
 
     #[test]
@@ -108,7 +105,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             text,
-            symmetric_decrypt(&key, symmetric_encrypt(&key, text).unwrap().as_slice())
+            aes_decrypt(&key, aes_encrypt(&key, text).unwrap().as_slice())
                 .unwrap()
                 .as_slice()
         );
@@ -116,27 +113,12 @@ pub(crate) mod tests {
         let utf8_text = "😀😀😀😀".as_bytes();
         assert_eq!(
             utf8_text,
-            symmetric_decrypt(&key, symmetric_encrypt(&key, utf8_text).unwrap().as_slice())
+            aes_decrypt(&key, aes_encrypt(&key, utf8_text).unwrap().as_slice())
                 .unwrap()
                 .as_slice()
         );
     }
 
-    #[cfg(feature = "stream")]
-    #[test]
-    fn test_xchacha20poly1305_known_key() {
-        let text = b"helloworld";
-        let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
-        let nonce = decode_hex("fe03326b7f59ae1f3c43b55b5442548d47c97ff94684af7f");
-        let encrypted = decode_hex("bf5d4e41a22e5d5dd6845b3ae15ba2cd1bee4070444b23f2c41c");
-
-        let mut cipher_text = Vec::new();
-        cipher_text.extend(nonce);
-        cipher_text.extend(encrypted);
-        assert_eq!(text, symmetric_decrypt(&key, &cipher_text).unwrap().as_slice())
-    }
-
-    #[cfg(any(feature = "pure", feature = "openssl_aes"))]
     #[test]
     fn test_aes_known_key() {
         let text = b"helloworld";
@@ -150,7 +132,7 @@ pub(crate) mod tests {
         cipher_text.extend(tag);
         cipher_text.extend(encrypted);
 
-        assert_eq!(text, symmetric_decrypt(&key, &cipher_text).unwrap().as_slice());
+        assert_eq!(text, aes_decrypt(&key, &cipher_text).unwrap().as_slice());
     }
 
     #[test]
