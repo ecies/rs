@@ -121,7 +121,7 @@ pub(crate) mod tests {
                 .as_slice()
         );
     }
-
+    #[cfg(any(feature = "pure", feature = "openssl"))]
     #[test]
     fn test_aes_known_key() {
         let text = b"helloworld";
@@ -133,6 +133,21 @@ pub(crate) mod tests {
         let mut cipher_text = Vec::new();
         cipher_text.extend(iv);
         cipher_text.extend(tag);
+        cipher_text.extend(encrypted);
+
+        assert_eq!(text, symmetric_decrypt(&key, &cipher_text).unwrap().as_slice());
+    }
+
+    #[cfg(feature = "stream")]
+    #[test]
+    fn test_xchacha20poly1305_known_key() {
+        let text = b"helloworld";
+        let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
+        let nonce = decode_hex("5764a259a028e101ae3ccaa1e7ce251c9611841070a6ed0e");
+        let encrypted = decode_hex("17207faba2b2505c77c927e62108e28e0445d4dd505b542c0e98");
+
+        let mut cipher_text = Vec::new();
+        cipher_text.extend(nonce);
         cipher_text.extend(encrypted);
 
         assert_eq!(text, symmetric_decrypt(&key, &cipher_text).unwrap().as_slice());

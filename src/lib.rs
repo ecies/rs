@@ -181,7 +181,8 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(feature = "stream"))]
+    #[cfg(not(target_arch = "wasm32"), feature = "stream")]
     fn test_against_python() {
         use futures_util::FutureExt;
         use hex::encode;
