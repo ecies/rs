@@ -8,7 +8,7 @@
 
 Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
 
-ECIES functionalities are built upon AES-GCM-256 and HKDF-SHA256.
+ECIES functionalities are built upon (AES-GCM-256 and HKDF-SHA256) and XChaCha20-Poly1305.
 
 This is the Rust version of [eciespy](https://github.com/ecies/py).
 
@@ -54,6 +54,14 @@ RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
 
 to speed up AES encryption/decryption. This would be no longer necessary when [`aes-gcm` supports automatic CPU detection](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
 
+## Alternative Rust XChaCha20-Poly1305 backend
+
+You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
+
+```toml
+ecies = {version = "0.2", default-features = false, features = ["stream"]}
+```
+
 ## WASM compatibility
 
 It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
@@ -75,6 +83,7 @@ All functionalities are mutually checked among [different languages](https://git
 Following dependencies are audited:
 
 - [aes-gcm](https://research.nccgroup.com/2020/02/26/public-report-rustcrypto-aes-gcm-and-chacha20poly1305-implementation-review/)
+- [chacha20-poly1305](https://research.nccgroup.com/2020/02/26/public-report-rustcrypto-aes-gcm-and-chacha20poly1305-implementation-review/)
 - [OpenSSL](https://ostif.org/the-ostif-and-quarkslab-audit-of-openssl-is-complete/)
 
 ## Benchmark

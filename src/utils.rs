@@ -7,10 +7,13 @@ use crate::consts::EMPTY_BYTES;
 use crate::types::AesKey;
 
 #[cfg(feature = "pure")]
-pub use crate::pure_aes::{aes_decrypt, aes_encrypt};
+pub use crate::pure_aes::{symmetric_decrypt, symmetric_encrypt};
 
 #[cfg(feature = "openssl")]
-pub use crate::openssl_aes::{aes_decrypt, aes_encrypt};
+pub use crate::openssl_aes::{symmetric_decrypt, symmetric_encrypt};
+
+#[cfg(feature = "stream")]
+pub use crate::chacha20poly1305::{symmetric_encrypt, symmetric_decrypt};
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
@@ -18,7 +21,7 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
     (sk, PublicKey::from_secret_key(&sk))
 }
 
-/// Calculate a shared AES key of our secret key and peer's public key by hkdf
+/// Calculate a shared symmetric encryption key of our secret key and peer's public key by hkdf
 pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpError> {
     let mut shared_point = *peer_pk;
     shared_point.tweak_mul_assign(sk)?;
@@ -30,7 +33,7 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpEr
     hkdf_sha256(master.as_slice())
 }
 
-/// Calculate a shared AES key of our public key and peer's secret key by hkdf
+/// Calculate a shared symmetric encryption key of our public key and peer's secret key by hkdf
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<AesKey, SecpError> {
     let mut shared_point = *pk;
     shared_point.tweak_mul_assign(peer_sk)?;
@@ -92,9 +95,9 @@ pub(crate) mod tests {
 
     #[test]
     fn test_attempt_to_decrypt_invalid_message() {
-        assert!(aes_decrypt(&[], &[]).is_none());
+        assert!(symmetric_decrypt(&[], &[]).is_none());
 
-        assert!(aes_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
+        assert!(symmetric_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
     }
 
     #[test]
@@ -105,7 +108,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             text,
-            aes_decrypt(&key, aes_encrypt(&key, text).unwrap().as_slice())
+            symmetric_decrypt(&key, symmetric_encrypt(&key, text).unwrap().as_slice())
                 .unwrap()
                 .as_slice()
         );
@@ -113,26 +116,24 @@ pub(crate) mod tests {
         let utf8_text = "😀😀😀😀".as_bytes();
         assert_eq!(
             utf8_text,
-            aes_decrypt(&key, aes_encrypt(&key, utf8_text).unwrap().as_slice())
+            symmetric_decrypt(&key, symmetric_encrypt(&key, utf8_text).unwrap().as_slice())
                 .unwrap()
                 .as_slice()
         );
     }
 
     #[test]
-    fn test_aes_known_key() {
+    fn test_known_symmetric_key() {
         let text = b"helloworld";
-        let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
-        let iv = decode_hex("f3e1ba810d2c8900b11312b7c725565f");
-        let tag = decode_hex("ec3b71e17c11dbe31484da9450edcf6c");
-        let encrypted = decode_hex("02d2ffed93b856f148b9");
+        let key = decode_hex("bd2b6b011cf6f44d9ff81731527435d19bf8ebfc5b8ec7f76a549a424a760298");
+        let nonce = decode_hex("8deb4013669fd173edd3528cce6c219b7aecdda65dcf4409");
+        let encrypted = decode_hex("eb916beec43b00a9f81162522181ea4d4359cd5c3184623eda10");
 
-        let mut cipher_text = Vec::new();
-        cipher_text.extend(iv);
-        cipher_text.extend(tag);
+        let mut cipher_text = Vec::with_capacity(encrypted.len() + 24);
         cipher_text.extend(encrypted);
-
-        assert_eq!(text, aes_decrypt(&key, &cipher_text).unwrap().as_slice());
+        cipher_text.extend(nonce);
+        
+        assert_eq!(text, symmetric_decrypt(&key, &cipher_text).unwrap().as_slice());
     }
 
     #[test]

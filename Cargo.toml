@@ -24,6 +24,8 @@ hkdf = "0.12.3"
 libsecp256k1 = "0.7.1"
 sha2 = "0.10.6"
 
+chacha20poly1305 = {version = "0.10.1", optional=true}
+
 # openssl aes
 openssl = {version = "0.10.42", optional = true}
 
@@ -40,6 +42,7 @@ rand = {version = "0.8.5"}
 
 [features]
 default = ["openssl"]
+stream = ["chacha20poly1305"]
 pure = ["aes-gcm", "typenum"]
 
 [dev-dependencies]

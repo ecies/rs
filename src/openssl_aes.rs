@@ -4,7 +4,7 @@ use rand::{thread_rng, Rng};
 use crate::consts::{AES_IV_LENGTH, AES_IV_PLUS_TAG_LENGTH, AES_TAG_LENGTH, EMPTY_BYTES};
 
 /// AES-256-GCM encryption wrapper
-pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+pub fn symmetric_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let cipher = Cipher::aes_256_gcm();
 
     let mut iv = [0u8; AES_IV_LENGTH];
@@ -25,7 +25,7 @@ pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// AES-256-GCM decryption wrapper
-pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
+pub fn symmetric_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     if encrypted_msg.len() < AES_IV_PLUS_TAG_LENGTH {
         return None;
     }

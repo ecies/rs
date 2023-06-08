@@ -64,7 +64,10 @@ mod openssl_aes;
 #[cfg(feature = "pure")]
 mod pure_aes;
 
-use utils::{aes_decrypt, aes_encrypt, decapsulate, encapsulate, generate_keypair};
+#[cfg(feature = "stream")]
+mod chacha20poly1305;
+
+use utils::{symmetric_decrypt, symmetric_encrypt, decapsulate, encapsulate, generate_keypair};
 
 /// Encrypt a message by a public key
 ///
@@ -76,8 +79,8 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_pk = PublicKey::parse_slice(receiver_pub, None)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
-    let aes_key = encapsulate(&ephemeral_sk, &receiver_pk)?;
-    let encrypted = aes_encrypt(&aes_key, msg).ok_or(SecpError::InvalidMessage)?;
+    let symmetric_key = encapsulate(&ephemeral_sk, &receiver_pk)?;
+    let encrypted = symmetric_encrypt(&symmetric_key, msg).ok_or(SecpError::InvalidMessage)?;
 
     let mut cipher_text = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE + encrypted.len());
     cipher_text.extend(ephemeral_pk.serialize().iter());
@@ -102,9 +105,9 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let ephemeral_pk = PublicKey::parse_slice(&msg[..FULL_PUBLIC_KEY_SIZE], None)?;
     let encrypted = &msg[FULL_PUBLIC_KEY_SIZE..];
 
-    let aes_key = decapsulate(&ephemeral_pk, &receiver_sk)?;
+    let symmetric_key = decapsulate(&ephemeral_pk, &receiver_sk)?;
 
-    aes_decrypt(&aes_key, encrypted).ok_or(SecpError::InvalidMessage)
+    symmetric_decrypt(&symmetric_key, encrypted).ok_or(SecpError::InvalidMessage)
 }
 
 #[cfg(test)]
@@ -180,6 +183,8 @@ mod tests {
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
+    // Backend compiler for AES. XChaCha20-Poly1305 will not work with this.
+    #[cfg(not(feature = "stream"))]
     fn test_against_python() {
         use futures_util::FutureExt;
         use hex::encode;
