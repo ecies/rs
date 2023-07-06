@@ -35,7 +35,7 @@ assert_eq!(
 You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
 
 ```toml
-ecies = {version = "0.2", default-features = false, features = ["pure"]}
+ecies = {version = "0.2.5", default-features = false, features = ["pure"]}
 ```
 
 Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
@@ -56,10 +56,10 @@ to speed up AES encryption/decryption. This would be no longer necessary when [`
 
 ## Alternative Rust XChaCha20-Poly1305 backend
 
-You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
+You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of XChaCha20-Poly1305:
 
 ```toml
-ecies = {version = "0.2", default-features = false, features = ["stream"]}
+ecies = {version = "0.2.5", default-features = false, features = ["stream"]}
 ```
 
 ## WASM compatibility
@@ -143,6 +143,9 @@ Found 1 outliers among 10 measurements (10.00%)
 ```
 
 ## Release Notes
+
+### 0.2.5
+- XChaCha20-Poly1305 backend added
 
 ### 0.2.1 ~ 0.2.4
 
