@@ -56,7 +56,7 @@ to speed up AES encryption/decryption. This would be no longer necessary when [`
 
 ## Alternative Rust XChaCha20-Poly1305 backend
 
-You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of XChaCha20-Poly1305:
+You can choose to use [pure Rust implementation](https://github.com/RustCrypto/AEADs) of XChaCha20-Poly1305:
 
 ```toml
 ecies = {version = "0.2.5", default-features = false, features = ["stream"]}
@@ -70,7 +70,7 @@ It's also possible to build to the `wasm32-unknown-unknown` target with the pure
 
 ### Why XChaCha20-Poly1305
 
-XChaCha20-Poly1305 is go to option for symmetric ciphers. It gives infinite amount of reuse of same secret key with random disposable nonce and more resistant to side-channel attacks than AES-GCM-256. 
+XChaCha20-Poly1305 is an excellent choice for symmetric encryption due to its robust security profile, efficient performance, and resistance to side-channel attacks. Its extended nonce size allows for safe reuse of the same key with different nonces, making it well-suited for systems that require high volumes of secure data transmission
 
 
 ### Why AES-GCM-256 and HKDF-SHA256
