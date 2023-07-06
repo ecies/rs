@@ -68,9 +68,14 @@ It's also possible to build to the `wasm32-unknown-unknown` target with the pure
 
 ## Security
 
+### Why XChaCha20-Poly1305
+
+XChaCha20-Poly1305 is go to option for symmetric ciphers. It gives infinite amount of reuse of same secret key with random disposable nonce and more resistant to side-channel attacks than AES-GCM-256. 
+
+
 ### Why AES-GCM-256 and HKDF-SHA256
 
-AEAD scheme like AES-GCM-256 should be your first option for symmetric ciphers, with unique IVs in each encryption.
+AEAD scheme like AES-GCM-256 can be your option for symmetric ciphers, with unique IVs in each encryption.
 
 For key derivation functions on shared points between two asymmetric keys, HKDFs are [proven](https://github.com/ecies/py/issues/82) to be more secure than simple hash functions like SHA256.
 
