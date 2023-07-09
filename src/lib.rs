@@ -187,7 +187,7 @@ mod tests {
 
         use utils::tests::decode_hex;
 
-        const PYTHON_BACKEND: &str = "https://ecies.deta.dev/";
+        const PYTHON_BACKEND: &str = "https://eciespydemo-1-d5397785.deta.app/";
 
         let (sk, pk) = generate_keypair();
 
