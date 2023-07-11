@@ -1,8 +1,9 @@
 use hkdf::Hkdf;
-use libsecp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
+use libsecp256k1::{Error as SecpError, PublicKey, SecretKey};
 use rand::thread_rng;
 use sha2::Sha256;
 
+use crate::config::{get_ephemeral_key_size, is_hkdf_key_compressed};
 use crate::consts::EMPTY_BYTES;
 use crate::types::AesKey;
 
@@ -23,11 +24,8 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpEr
     let mut shared_point = *peer_pk;
     shared_point.tweak_mul_assign(sk)?;
 
-    let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
-    master.extend(PublicKey::from_secret_key(sk).serialize().iter());
-    master.extend(shared_point.serialize().iter());
-
-    hkdf_sha256(master.as_slice())
+    let pk = PublicKey::from_secret_key(sk);
+    derive_key(&pk, &shared_point)
 }
 
 /// Calculate a shared AES key of our public key and peer's secret key by hkdf
@@ -35,14 +33,24 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<AesKey, SecpEr
     let mut shared_point = *pk;
     shared_point.tweak_mul_assign(peer_sk)?;
 
-    let mut master = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE * 2);
-    master.extend(pk.serialize().iter());
-    master.extend(shared_point.serialize().iter());
-
-    hkdf_sha256(master.as_slice())
+    derive_key(pk, &shared_point)
 }
 
 // private below
+fn derive_key(pk: &PublicKey, shared_point: &PublicKey) -> Result<AesKey, SecpError> {
+    let key_size = get_ephemeral_key_size();
+    let mut master = Vec::with_capacity(key_size * 2);
+
+    if is_hkdf_key_compressed() {
+        master.extend(pk.serialize_compressed().iter());
+        master.extend(shared_point.serialize_compressed().iter());
+    } else {
+        master.extend(pk.serialize().iter());
+        master.extend(shared_point.serialize().iter());
+    }
+    hkdf_sha256(master.as_slice())
+}
+
 fn hkdf_sha256(master: &[u8]) -> Result<AesKey, SecpError> {
     let h = Hkdf::<Sha256>::new(None, master);
     let mut out = [0u8; 32];
@@ -53,10 +61,11 @@ fn hkdf_sha256(master: &[u8]) -> Result<AesKey, SecpError> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use hex::decode;
-
     use libsecp256k1::Error;
     use rand::{thread_rng, Rng};
+
+    // dev dep
+    use hex::decode;
 
     use super::*;
     use crate::consts::{AES_IV_LENGTH, EMPTY_BYTES};

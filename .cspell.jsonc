@@ -1,0 +1,41 @@
+{
+  // Version of the setting file.  Always 0.2
+  "version": "0.2",
+  // language - current active spelling language
+  "language": "en",
+  // words - list of words to be always considered correct
+  "words": [
+    "bindgen",
+    "Codacy",
+    "consts",
+    "Ctarget",
+    "ecies",
+    "eciespy",
+    "eciesrs",
+    "helloworld",
+    "HKDF",
+    "keypair",
+    "libsecp",
+    "reqwest",
+    "RUSTFLAGS",
+    "sandybridge",
+    "secp",
+    "secp256k1",
+    "ssse",
+    "symm",
+    "typenum"
+  ],
+  // flagWords - list of words to be always considered incorrect
+  // This is useful for offensive words and common spelling errors.
+  // For example "hte" should be "the"
+  "flagWords": ["hte"],
+  "ignorePaths": [
+    ".git",
+    ".github",
+    ".gitignore",
+    ".cspell.jsonc",
+    "LICENSE",
+    "package.json",
+    "yarn.lock"
+  ]
+}

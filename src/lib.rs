@@ -50,7 +50,8 @@
 //!
 //! It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
-pub use libsecp256k1::{util::FULL_PUBLIC_KEY_SIZE, Error as SecpError, PublicKey, SecretKey};
+use config::{get_ephemeral_key_size, is_ephemeral_key_compressed};
+pub use libsecp256k1::{Error as SecpError, PublicKey, SecretKey};
 
 /// Constant variables
 pub mod consts;
@@ -58,6 +59,9 @@ pub mod consts;
 pub mod types;
 /// Utility functions for ecies
 pub mod utils;
+
+// ecies configuration
+pub mod config;
 
 #[cfg(feature = "openssl")]
 mod openssl_aes;
@@ -79,8 +83,15 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let aes_key = encapsulate(&ephemeral_sk, &receiver_pk)?;
     let encrypted = aes_encrypt(&aes_key, msg).ok_or(SecpError::InvalidMessage)?;
 
-    let mut cipher_text = Vec::with_capacity(FULL_PUBLIC_KEY_SIZE + encrypted.len());
-    cipher_text.extend(ephemeral_pk.serialize().iter());
+    let key_size = get_ephemeral_key_size();
+    let mut cipher_text = Vec::with_capacity(key_size + encrypted.len());
+
+    if is_ephemeral_key_compressed() {
+        cipher_text.extend(ephemeral_pk.serialize_compressed().iter());
+    } else {
+        cipher_text.extend(ephemeral_pk.serialize().iter());
+    }
+
     cipher_text.extend(encrypted);
 
     Ok(cipher_text)
@@ -94,13 +105,14 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
 /// * `msg` - The u8 array reference of the encrypted message
 pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
     let receiver_sk = SecretKey::parse_slice(receiver_sec)?;
+    let key_size = get_ephemeral_key_size();
 
-    if msg.len() < FULL_PUBLIC_KEY_SIZE {
+    if msg.len() < key_size {
         return Err(SecpError::InvalidMessage);
     }
 
-    let ephemeral_pk = PublicKey::parse_slice(&msg[..FULL_PUBLIC_KEY_SIZE], None)?;
-    let encrypted = &msg[FULL_PUBLIC_KEY_SIZE..];
+    let ephemeral_pk = PublicKey::parse_slice(&msg[..key_size], None)?;
+    let encrypted = &msg[key_size..];
 
     let aes_key = decapsulate(&ephemeral_pk, &receiver_sk)?;
 
@@ -111,6 +123,7 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, SecpError> {
 mod tests {
 
     use super::*;
+
     use utils::generate_keypair;
 
     const MSG: &str = "helloworld";
