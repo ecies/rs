@@ -1,13 +1,6 @@
 {
-  "spellright.language": ["en"],
-  "spellright.documentTypes": ["markdown", "latex", "plaintext", "rust", "toml"],
   "rust-analyzer.cargo.features": ["pure"],
   "rust-analyzer.cargo.noDefaultFeatures": true,
   "rust-analyzer.procMacro.enable": true,
-  "spellright.ignoreFiles": [
-    "~/.cargo/",
-    "~/.rustup/",
-    "**/.gitignore",
-    "**/.spellignore"
-  ]
+  "rust-analyzer.linkedProjects": ["./Cargo.toml"]
 }
