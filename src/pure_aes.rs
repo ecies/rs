@@ -9,7 +9,7 @@ use crate::consts::{AES_IV_LENGTH, AES_IV_PLUS_TAG_LENGTH, EMPTY_BYTES};
 pub type Aes256Gcm = AesGcm<Aes256, U16>;
 
 /// AES-256-GCM encryption wrapper
-pub fn symmetric_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let key = GenericArray::from_slice(key);
     let aead = Aes256Gcm::new(key);
 
@@ -33,7 +33,7 @@ pub fn symmetric_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// AES-256-GCM decryption wrapper
-pub fn symmetric_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
+pub fn sym_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     if encrypted_msg.len() < AES_IV_PLUS_TAG_LENGTH {
         return None;
     }

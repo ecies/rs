@@ -6,7 +6,7 @@ use rand::{Rng, thread_rng};
 use crate::consts::{AES_IV_LENGTH, AES_IV_PLUS_TAG_LENGTH, EMPTY_BYTES, XCHACHA20POLY1305_NONCE_LENGTH};
 
 /// XChaCha20-Poly1305 encryption wrapper
-pub fn symmetric_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let key = Key::from_slice(key);
     let aead = XChaCha20Poly1305::new(key);
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
@@ -18,7 +18,7 @@ pub fn symmetric_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// XChaCha20-Poly1305 decryption wrapper
-pub fn symmetric_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
+pub fn sym_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     if encrypted_msg.len() < XCHACHA20POLY1305_NONCE_LENGTH {
         return None;
     }

@@ -7,13 +7,13 @@ use crate::consts::EMPTY_BYTES;
 use crate::types::AesKey;
 
 #[cfg(feature = "pure")]
-pub use crate::pure_aes::{symmetric_decrypt, symmetric_encrypt};
+pub use crate::pure_aes::{sym_decrypt, sym_encrypt};
 
 #[cfg(feature = "openssl")]
-pub use crate::openssl_aes::{symmetric_decrypt, symmetric_encrypt};
+pub use crate::openssl_aes::{sym_decrypt, sym_encrypt};
 
 #[cfg(feature = "stream")]
-pub use crate::chacha20poly1305::{symmetric_encrypt, symmetric_decrypt};
+pub use crate::chacha20poly1305::{sym_encrypt, sym_decrypt};
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
@@ -95,9 +95,9 @@ pub(crate) mod tests {
 
     #[test]
     fn test_attempt_to_decrypt_invalid_message() {
-        assert!(symmetric_decrypt(&[], &[]).is_none());
+        assert!(sym_decrypt(&[], &[]).is_none());
 
-        assert!(symmetric_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
+        assert!(sym_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
     }
 
     #[test]
@@ -108,7 +108,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             text,
-            symmetric_decrypt(&key, symmetric_encrypt(&key, text).unwrap().as_slice())
+            sym_decrypt(&key, sym_encrypt(&key, text).unwrap().as_slice())
                 .unwrap()
                 .as_slice()
         );
@@ -116,25 +116,43 @@ pub(crate) mod tests {
         let utf8_text = "😀😀😀😀".as_bytes();
         assert_eq!(
             utf8_text,
-            symmetric_decrypt(&key, symmetric_encrypt(&key, utf8_text).unwrap().as_slice())
+            sym_decrypt(&key, sym_encrypt(&key, utf8_text).unwrap().as_slice())
                 .unwrap()
                 .as_slice()
         );
     }
-
+    #[cfg(not(feature = "stream"))]
     #[test]
     fn test_known_symmetric_key() {
         let text = b"helloworld";
-        let key = decode_hex("bd2b6b011cf6f44d9ff81731527435d19bf8ebfc5b8ec7f76a549a424a760298");
-        let nonce = decode_hex("8deb4013669fd173edd3528cce6c219b7aecdda65dcf4409");
-        let encrypted = decode_hex("eb916beec43b00a9f81162522181ea4d4359cd5c3184623eda10");
+        let key = decode_hex("563e15d8e49d0963396da88e6ffa7917bf0721852adc58ebbeff29305a465fd3");
+        let iv = decode_hex("4c560f80be682cf257acaefdbbcb5b07");
+        let tag = decode_hex("1d5796632bffea964f2f2b9d01ae1797");
+        let encrypted = decode_hex("c97f4e580b58e9ca76fc");
+
+        let mut cipher_text = Vec::with_capacity(encrypted.len() + tag.len() + iv.len());
+        cipher_text.extend(&iv);
+        cipher_text.extend(tag);
+        cipher_text.extend(encrypted);
+        
+        assert_eq!(text, sym_decrypt(&key, &cipher_text).unwrap().as_slice());
+    }
+
+    #[cfg(feature = "stream")]
+    #[test]
+    fn test_known_symmetric_key() {
+        let text = b"helloworld";
+        let key = decode_hex("27bd6ec46292a3b421cdaf8a3f0ca759cbc67bcbe7c5855aa0d1e0700fd0e828");
+        let nonce = decode_hex("fbd5dd10431af533c403d6f4fa629931e5f31872d2f7e7b6");
+        let encrypted = decode_hex("aa0664f3c00a09d098bf5b5ccc27324af03b7ca92dd067ad6eb5");
 
         let mut cipher_text = Vec::with_capacity(encrypted.len() + 24);
         cipher_text.extend(encrypted);
         cipher_text.extend(nonce);
-        
-        assert_eq!(text, symmetric_decrypt(&key, &cipher_text).unwrap().as_slice());
+
+        assert_eq!(text, sym_decrypt(&key, &cipher_text).unwrap().as_slice());
     }
+
 
     #[test]
     fn test_valid_secret() {
