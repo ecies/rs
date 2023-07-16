@@ -42,6 +42,8 @@ rand = {version = "0.8.5"}
 [features]
 default = ["openssl"]
 pure = ["aes-gcm", "typenum"]
+# default: 16 bytes
+aes_12bytes_nonce = []
 
 [dev-dependencies]
 criterion = {version = "0.5.1", default-features = false}
