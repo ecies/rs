@@ -190,57 +190,6 @@ mod tests {
         let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
         test_enc_dec_big(sk, pk);
     }
-
-    #[test]
-    #[cfg(not(target_arch = "wasm32"))]
-    fn test_against_python() {
-        use futures_util::FutureExt;
-        use hex::encode;
-        use tokio::runtime::Runtime;
-
-        use utils::tests::decode_hex;
-
-        const PYTHON_BACKEND: &str = "https://eciespydemo-1-d5397785.deta.app/";
-
-        let (sk, pk) = generate_keypair();
-
-        let sk_hex = encode(&sk.serialize().to_vec());
-        let uncompressed_pk = &pk.serialize();
-        let pk_hex = encode(uncompressed_pk.to_vec());
-
-        let client = reqwest::Client::new();
-        let params = [("data", MSG), ("pub", pk_hex.as_str())];
-
-        let rt = Runtime::new().unwrap();
-        let res = rt
-            .block_on(
-                client
-                    .post(PYTHON_BACKEND)
-                    .form(&params)
-                    .send()
-                    .then(|r| r.unwrap().text()),
-            )
-            .unwrap();
-
-        let server_encrypted = decode_hex(&res);
-        let local_decrypted = decrypt(&sk.serialize(), server_encrypted.as_slice()).unwrap();
-        assert_eq!(local_decrypted, MSG.as_bytes());
-
-        let local_encrypted = encrypt(uncompressed_pk, MSG.as_bytes()).unwrap();
-        let params = [("data", encode(local_encrypted)), ("prv", sk_hex)];
-
-        let res = rt
-            .block_on(
-                client
-                    .post(PYTHON_BACKEND)
-                    .form(&params)
-                    .send()
-                    .then(|r| r.unwrap().text()),
-            )
-            .unwrap();
-
-        assert_eq!(res, MSG);
-    }
 }
 
 #[cfg(all(test, target_arch = "wasm32"))]

@@ -133,26 +133,38 @@ Found 1 outliers among 10 measurements (10.00%)
   1 (10.00%) high mild
 ```
 
-## Release Notes
+## Configuration
 
-### 0.2.1 ~ 0.2.4
+You can enable 12 bytes nonce by specify `aes_12bytes_nonce` feature.
 
-- Revamp error handling
-- Migrate to edition 2021
-- Bump dependencies
+```toml
+ecies = {version = "0.2", default-features = false, features = ["aes_12bytes_nonce"]}
+```
 
-### 0.2.0
+Other behaviors can be configured by global static variable:
 
-- Revamp documentation
-- Optional pure Rust AES backend
-- WASM compatibility
+```rs
+pub struct Config {
+    pub is_ephemeral_key_compressed: bool,
+    pub is_hkdf_key_compressed: bool,
+    pub symmetric_algorithm: SymmetricAlgorithm,
+}
+```
 
-### 0.1.1 ~ 0.1.5
+If you set `is_ephemeral_key_compressed: true`, the payload would be like: `33 Bytes + AES` instead of `65 Bytes + AES`.
 
-- Bump dependencies
-- Update documentation
-- Fix error handling
+If you set `is_hkdf_key_compressed: true`, the hkdf key would be derived from `ephemeral public key (compressed) + shared public key (compressed)` instead of `ephemeral public key (uncompressed) + shared public key (uncompressed)`.
 
-### 0.1.0
+```rs
+update_config(Config {
+    is_ephemeral_key_compressed: true,
+    is_hkdf_key_compressed: true,
+    ..Config::default()
+});
+```
 
-- First beta version release
+For compatibility, make sure different applications share the same configuration.
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).

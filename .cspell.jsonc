@@ -22,6 +22,7 @@
     "secp",
     "secp256k1",
     "ssse",
+    "struct",
     "symm",
     "typenum"
   ],

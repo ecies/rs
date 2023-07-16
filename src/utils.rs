@@ -68,7 +68,7 @@ pub(crate) mod tests {
     use hex::decode;
 
     use super::*;
-    use crate::consts::{AES_IV_LENGTH, EMPTY_BYTES};
+    use crate::consts::EMPTY_BYTES;
 
     /// Remove 0x prefix of a hex string
     pub fn remove0x(hex: &str) -> &str {
@@ -102,8 +102,7 @@ pub(crate) mod tests {
     #[test]
     fn test_attempt_to_decrypt_invalid_message() {
         assert!(aes_decrypt(&[], &[]).is_none());
-
-        assert!(aes_decrypt(&[], &[0; AES_IV_LENGTH]).is_none());
+        assert!(aes_decrypt(&[], &[0; 16]).is_none());
     }
 
     #[test]
@@ -129,6 +128,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "aes_12bytes_nonce"))]
     fn test_aes_known_key() {
         let text = b"helloworld";
         let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");

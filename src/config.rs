@@ -4,27 +4,20 @@ use once_cell::sync::Lazy;
 
 use crate::consts::{COMPRESSED_PUBLIC_KEY_SIZE, UNCOMPRESSED_PUBLIC_KEY_SIZE};
 
+#[derive(Default)]
 pub enum SymmetricAlgorithm {
+    #[default]
     Aes256Gcm,
 }
 
+#[derive(Default)]
 pub struct Config {
     pub is_ephemeral_key_compressed: bool,
     pub is_hkdf_key_compressed: bool,
     pub symmetric_algorithm: SymmetricAlgorithm,
 }
 
-impl Config {
-    pub fn default() -> Self {
-        Config {
-            is_ephemeral_key_compressed: false,
-            is_hkdf_key_compressed: false,
-            symmetric_algorithm: SymmetricAlgorithm::Aes256Gcm,
-        }
-    }
-}
-
-/// Global config
+/// Global config variable
 pub static ECIES_CONFIG: Lazy<Mutex<Config>> = Lazy::new(|| {
     let config: Config = Config::default();
     Mutex::new(config)
