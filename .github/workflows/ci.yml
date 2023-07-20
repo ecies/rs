@@ -17,6 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         toolchain: [stable, beta, nightly]
+        feature: [pure, xchacha20, "pure,aes-12bytes-nonce"]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -41,30 +42,34 @@ jobs:
             target
           key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-        if: matrix.os != 'windows-latest'
+      # install openssl on Windows
+      - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+        if: matrix.os == 'windows-latest'
+      - run: New-Item -ItemType "directory" -Path "C:\vcpkg\downloads" -Force
+        if: matrix.os == 'windows-latest'
+      - run: Invoke-WebRequest -URI "$env:BASE_URL/$env:FILE_NAME" -OutFile "C:\vcpkg\downloads\$env:FILE_NAME"
+        env:
+          BASE_URL: https://github.com/microsoft/vcpkg/files/12073957
+          FILE_NAME: nasm-2.16.01-win64.zip
+        if: matrix.os == 'windows-latest'
+      - run: vcpkg install openssl:x64-windows-static-md
+        if: matrix.os == 'windows-latest'
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-        if: matrix.os != 'windows-latest'
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-        if: matrix.os != 'windows-latest'
+      - name: Check and run lint
+        run: cargo check && cargo fmt && cargo clippy
 
       - name: Run openssl tests
         run: cargo test
-        if: matrix.os != 'windows-latest'
+      - name: Run openssl 12 bytes nonce tests
+        run: cargo test --features aes-12bytes-nonce
+
       - name: Run pure rust tests
-        run: cargo test --no-default-features --features pure
+        run: cargo test --no-default-features --features ${{ matrix.feature }}
+
       - name: Install wasm dep
         run: cargo install wasm-bindgen-cli || true
       - name: Run wasm tests
-        run: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
+        run: cargo test --no-default-features --features ${{ matrix.feature }} --target=wasm32-unknown-unknown
 
       - name: Check cargo package
         run: cargo publish --dry-run

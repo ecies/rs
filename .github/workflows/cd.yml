@@ -31,14 +31,17 @@ jobs:
             ~/.cargo/bin
             target
           key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install wasm dep
-        run: cargo install wasm-bindgen-cli || true
+
       - name: Run openssl tests
         run: cargo test
       - name: Run pure rust tests
         run: cargo test --no-default-features --features pure
+
+      - name: Install wasm dep
+        run: cargo install wasm-bindgen-cli || true
       - name: Run wasm tests
         run: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
+
       - name: Publish cargo package
         run: cargo login $CARGO_LOGIN_TOKEN && cargo publish
         env:

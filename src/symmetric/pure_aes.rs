@@ -1,27 +1,29 @@
-use aes_gcm::aead::{generic_array::GenericArray, AeadInPlace};
-use aes_gcm::{aes::Aes256, AesGcm, KeyInit};
+use aes_gcm::{
+    aead::{generic_array::GenericArray, AeadInPlace},
+    aes::Aes256,
+    AesGcm, KeyInit,
+};
 use rand::{thread_rng, Rng};
 #[allow(unused_imports)]
 use typenum::consts::{U12, U16};
 
-use crate::consts::{AES_NONCE_LENGTH, EMPTY_BYTES, NONCE_TAG_LENGTH};
+use crate::consts::{AEAD_TAG_LENGTH, AES_NONCE_LENGTH, EMPTY_BYTES};
 
-/// AES-256-GCM with 16 bytes Nonce/IV
-#[cfg(not(feature = "aes_12bytes_nonce"))]
-pub type Aes256Gcm = AesGcm<Aes256, U16>;
+#[cfg(not(feature = "aes-12bytes-nonce"))]
+type Aes256Gcm = AesGcm<Aes256, U16>;
 
-/// AES-256-GCM with 12 bytes Nonce/IV
-#[cfg(feature = "aes_12bytes_nonce")]
-pub type Aes256Gcm = AesGcm<Aes256, U12>;
+#[cfg(feature = "aes-12bytes-nonce")]
+type Aes256Gcm = AesGcm<Aes256, U12>;
+
+const NONCE_TAG_LENGTH: usize = AES_NONCE_LENGTH + AEAD_TAG_LENGTH;
 
 /// AES-256-GCM encryption wrapper
-pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
-    let key: &GenericArray<u8, _> = GenericArray::from_slice(key);
+pub fn encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+    let key = GenericArray::from_slice(key);
     let aead = Aes256Gcm::new(key);
 
     let mut iv = [0u8; AES_NONCE_LENGTH];
     thread_rng().fill(&mut iv);
-
     let nonce = GenericArray::from_slice(&iv);
 
     let mut out = Vec::with_capacity(msg.len());
@@ -39,11 +41,10 @@ pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// AES-256-GCM decryption wrapper
-pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
+pub fn decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     if encrypted_msg.len() < NONCE_TAG_LENGTH {
         return None;
     }
-
     let key = GenericArray::from_slice(key);
     let aead = Aes256Gcm::new(key);
 

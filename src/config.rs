@@ -4,17 +4,11 @@ use once_cell::sync::Lazy;
 
 use crate::consts::{COMPRESSED_PUBLIC_KEY_SIZE, UNCOMPRESSED_PUBLIC_KEY_SIZE};
 
-#[derive(Default)]
-pub enum SymmetricAlgorithm {
-    #[default]
-    Aes256Gcm,
-}
-
+/// ECIES config. Make sure all parties use the same config
 #[derive(Default)]
 pub struct Config {
     pub is_ephemeral_key_compressed: bool,
     pub is_hkdf_key_compressed: bool,
-    pub symmetric_algorithm: SymmetricAlgorithm,
 }
 
 /// Global config variable
@@ -23,18 +17,22 @@ pub static ECIES_CONFIG: Lazy<Mutex<Config>> = Lazy::new(|| {
     Mutex::new(config)
 });
 
+/// Update global config
 pub fn update_config(config: Config) {
     *ECIES_CONFIG.lock().unwrap() = config;
 }
 
+/// Reset global config to default
 pub fn reset_config() {
     update_config(Config::default())
 }
 
+/// Get ephemeral key compressed or not
 pub fn is_ephemeral_key_compressed() -> bool {
     ECIES_CONFIG.lock().unwrap().is_ephemeral_key_compressed
 }
 
+/// Get ephemeral key size: compressed(33) or uncompressed(65)
 pub fn get_ephemeral_key_size() -> usize {
     if is_ephemeral_key_compressed() {
         COMPRESSED_PUBLIC_KEY_SIZE
@@ -43,6 +41,7 @@ pub fn get_ephemeral_key_size() -> usize {
     }
 }
 
+/// Get hkdf key derived from compressed shared point or not
 pub fn is_hkdf_key_compressed() -> bool {
     ECIES_CONFIG.lock().unwrap().is_hkdf_key_compressed
 }

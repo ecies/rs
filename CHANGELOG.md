@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.2.1 ~ 0.2.4
+## 0.2.1 ~ 0.2.5
 
+- Revamp documentation
+- Revamp configuration and add xchacha20-poly1305 backend
 - Add configuration for more compatibility
 - Revamp error handling
 - Migrate to edition 2021

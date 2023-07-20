@@ -1,10 +1,12 @@
 use openssl::symm::{decrypt_aead, encrypt_aead, Cipher};
 use rand::{thread_rng, Rng};
 
-use crate::consts::{AEAD_TAG_LENGTH, AES_NONCE_LENGTH, EMPTY_BYTES, NONCE_TAG_LENGTH};
+use crate::consts::{AEAD_TAG_LENGTH, AES_NONCE_LENGTH, EMPTY_BYTES};
+
+const NONCE_TAG_LENGTH: usize = AES_NONCE_LENGTH + AEAD_TAG_LENGTH;
 
 /// AES-256-GCM encryption wrapper
-pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+pub fn encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let cipher = Cipher::aes_256_gcm();
 
     let mut iv = [0u8; AES_NONCE_LENGTH];
@@ -25,7 +27,7 @@ pub fn aes_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// AES-256-GCM decryption wrapper
-pub fn aes_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
+pub fn decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
     if encrypted_msg.len() < NONCE_TAG_LENGTH {
         return None;
     }

@@ -28,14 +28,13 @@ fn can_change_behavior_with_config() {
     assert_eq!(encapsulate(&sk2, &pk3), decapsulate(&pk2, &sk3));
 
     assert_eq!(
-        encapsulate(&sk2, &pk3).map(|v| v.to_vec()).unwrap(),
+        encapsulate(&sk2, &pk3).unwrap().to_vec(),
         decode("b192b226edb3f02da11ef9c6ce4afe1c7e40be304e05ae3b988f4834b1cb6c69").unwrap()
     );
 
     update_config(Config {
         is_ephemeral_key_compressed: true,
         is_hkdf_key_compressed: true,
-        ..Config::default()
     });
 
     let (sk, pk) = generate_keypair();
@@ -50,7 +49,11 @@ fn can_change_behavior_with_config() {
 }
 
 #[test]
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "aes_12bytes_nonce")))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(feature = "aes-12bytes-nonce"),
+    not(feature = "xchacha20")
+))]
 fn is_compatible_with_python() {
     use futures_util::FutureExt;
     use hex::encode;

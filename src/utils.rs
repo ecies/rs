@@ -5,13 +5,9 @@ use sha2::Sha256;
 
 use crate::config::{get_ephemeral_key_size, is_hkdf_key_compressed};
 use crate::consts::EMPTY_BYTES;
-use crate::types::AesKey;
 
-#[cfg(feature = "pure")]
-pub use crate::pure_aes::{aes_decrypt, aes_encrypt};
-
-#[cfg(feature = "openssl")]
-pub use crate::openssl_aes::{aes_decrypt, aes_encrypt};
+/// Shared secret derived from key exchange by hkdf
+pub type SharedSecret = [u8; 32];
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
@@ -20,7 +16,7 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 }
 
 /// Calculate a shared AES key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpError> {
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<SharedSecret, SecpError> {
     let mut shared_point = *peer_pk;
     shared_point.tweak_mul_assign(sk)?;
 
@@ -29,7 +25,7 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<AesKey, SecpEr
 }
 
 /// Calculate a shared AES key of our public key and peer's secret key by hkdf
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<AesKey, SecpError> {
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<SharedSecret, SecpError> {
     let mut shared_point = *pk;
     shared_point.tweak_mul_assign(peer_sk)?;
 
@@ -37,7 +33,7 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<AesKey, SecpEr
 }
 
 // private below
-fn derive_key(pk: &PublicKey, shared_point: &PublicKey) -> Result<AesKey, SecpError> {
+fn derive_key(pk: &PublicKey, shared_point: &PublicKey) -> Result<SharedSecret, SecpError> {
     let key_size = get_ephemeral_key_size();
     let mut master = Vec::with_capacity(key_size * 2);
 
@@ -51,7 +47,7 @@ fn derive_key(pk: &PublicKey, shared_point: &PublicKey) -> Result<AesKey, SecpEr
     hkdf_sha256(master.as_slice())
 }
 
-fn hkdf_sha256(master: &[u8]) -> Result<AesKey, SecpError> {
+fn hkdf_sha256(master: &[u8]) -> Result<SharedSecret, SecpError> {
     let h = Hkdf::<Sha256>::new(None, master);
     let mut out = [0u8; 32];
     h.expand(&EMPTY_BYTES, &mut out)
@@ -60,36 +56,11 @@ fn hkdf_sha256(master: &[u8]) -> Result<AesKey, SecpError> {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use libsecp256k1::Error;
-    use rand::{thread_rng, Rng};
-
-    // dev dep
-    use hex::decode;
 
     use super::*;
-    use crate::consts::EMPTY_BYTES;
-
-    /// Remove 0x prefix of a hex string
-    pub fn remove0x(hex: &str) -> &str {
-        if hex.starts_with("0x") || hex.starts_with("0X") {
-            return &hex[2..];
-        }
-        hex
-    }
-
-    /// Convert hex string to u8 vector
-    pub fn decode_hex(hex: &str) -> Vec<u8> {
-        decode(remove0x(hex)).unwrap()
-    }
-
-    #[test]
-    fn test_remove_0x_decode_hex() {
-        assert_eq!(remove0x("0x0011"), "0011");
-        assert_eq!(remove0x("0X0011"), "0011");
-        assert_eq!(remove0x("0011"), "0011");
-        assert_eq!(decode_hex("0x0011"), [0u8, 17u8]);
-    }
+    use crate::symmetric::tests::decode_hex;
 
     #[test]
     fn test_generate_keypair() {
@@ -97,51 +68,6 @@ pub(crate) mod tests {
         let (sk2, pk2) = generate_keypair();
         assert_ne!(sk1, sk2);
         assert_ne!(pk1, pk2);
-    }
-
-    #[test]
-    fn test_attempt_to_decrypt_invalid_message() {
-        assert!(aes_decrypt(&[], &[]).is_none());
-        assert!(aes_decrypt(&[], &[0; 16]).is_none());
-    }
-
-    #[test]
-    fn test_aes_random_key() {
-        let text = b"this is a text";
-        let mut key = [0u8; 32];
-        thread_rng().fill(&mut key);
-
-        assert_eq!(
-            text,
-            aes_decrypt(&key, aes_encrypt(&key, text).unwrap().as_slice())
-                .unwrap()
-                .as_slice()
-        );
-
-        let utf8_text = "😀😀😀😀".as_bytes();
-        assert_eq!(
-            utf8_text,
-            aes_decrypt(&key, aes_encrypt(&key, utf8_text).unwrap().as_slice())
-                .unwrap()
-                .as_slice()
-        );
-    }
-
-    #[test]
-    #[cfg(not(feature = "aes_12bytes_nonce"))]
-    fn test_aes_known_key() {
-        let text = b"helloworld";
-        let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
-        let iv = decode_hex("f3e1ba810d2c8900b11312b7c725565f");
-        let tag = decode_hex("ec3b71e17c11dbe31484da9450edcf6c");
-        let encrypted = decode_hex("02d2ffed93b856f148b9");
-
-        let mut cipher_text = Vec::new();
-        cipher_text.extend(iv);
-        cipher_text.extend(tag);
-        cipher_text.extend(encrypted);
-
-        assert_eq!(text, aes_decrypt(&key, &cipher_text).unwrap().as_slice());
     }
 
     #[test]
@@ -159,21 +85,18 @@ pub(crate) mod tests {
             Error::InvalidSecretKey
         );
     }
-
     #[test]
-    fn test_hkdf() {
+    fn test_known_hkdf_vector() {
         let text = b"secret";
 
-        let h = Hkdf::<Sha256>::new(None, text);
-        let mut out = [0u8; 32];
-        let r = h.expand(&EMPTY_BYTES, &mut out);
-
-        assert!(r.is_ok());
         assert_eq!(
-            out.to_vec(),
+            hkdf_sha256(text).unwrap().to_vec(),
             decode_hex("2f34e5ff91ec85d53ca9b543683174d0cf550b60d5f52b24c97b386cfcf6cbbf")
         );
+    }
 
+    #[test]
+    fn test_known_shared_secret() {
         let mut two = [0u8; 32];
         let mut three = [0u8; 32];
         two[31] = 2u8;
@@ -186,7 +109,7 @@ pub(crate) mod tests {
 
         assert_eq!(encapsulate(&sk2, &pk3), decapsulate(&pk2, &sk3));
         assert_eq!(
-            encapsulate(&sk2, &pk3).map(|v| v.to_vec()).unwrap(),
+            encapsulate(&sk2, &pk3).unwrap().to_vec(),
             decode_hex("6f982d63e8590c9d9b5b4c1959ff80315d772edd8f60287c9361d548d5200f82")
         );
     }

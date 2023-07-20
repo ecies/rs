@@ -58,6 +58,44 @@ to speed up AES encryption/decryption. This would be no longer necessary when [`
 
 It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
+## Configuration
+
+You can enable 12 bytes nonce by specify `aes-12bytes-nonce` feature.
+
+```toml
+ecies = {version = "0.2", features = ["aes-12bytes-nonce"]} # it also works for "pure"
+```
+
+You can also enable a pure Rust [XChaCha20-Poly1305](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305) backend.
+
+```toml
+ecies = {version = "0.2", default-features = false, features = ["xchacha20"]}
+```
+
+Other behaviors can be configured by global static variable:
+
+```rust
+pub struct Config {
+    pub is_ephemeral_key_compressed: bool,
+    pub is_hkdf_key_compressed: bool
+}
+```
+
+If you set `is_ephemeral_key_compressed: true`, the payload would be like: `33 Bytes + AES` instead of `65 Bytes + AES`.
+
+If you set `is_hkdf_key_compressed: true`, the hkdf key would be derived from `ephemeral public key (compressed) + shared public key (compressed)` instead of `ephemeral public key (uncompressed) + shared public key (uncompressed)`.
+
+```rust
+use ecies::config::{Config, update_config};
+
+update_config(Config {
+    is_ephemeral_key_compressed: true,
+    is_hkdf_key_compressed: true
+});
+```
+
+For compatibility, make sure different applications share the same configuration.
+
 ## Security
 
 ### Why AES-GCM-256 and HKDF-SHA256
@@ -65,6 +103,10 @@ It's also possible to build to the `wasm32-unknown-unknown` target with the pure
 AEAD scheme like AES-GCM-256 should be your first option for symmetric ciphers, with unique IVs in each encryption.
 
 For key derivation functions on shared points between two asymmetric keys, HKDFs are [proven](https://github.com/ecies/py/issues/82) to be more secure than simple hash functions like SHA256.
+
+### Why XChaCha20-Poly1305 instead of AES-GCM-256
+
+XChaCha20-Poly1305 is a competitive alternative to AES-256-GCM because it's fast and constant-time without hardware acceleration (resistent to cache-timing attacks). It also has longer nonce length.
 
 ### Cross-language compatibility
 
@@ -74,96 +116,71 @@ All functionalities are mutually checked among [different languages](https://git
 
 Following dependencies are audited:
 
-- [aes-gcm](https://research.nccgroup.com/2020/02/26/public-report-rustcrypto-aes-gcm-and-chacha20poly1305-implementation-review/)
+- [aes-gcm and chacha20poly1305](https://research.nccgroup.com/2020/02/26/public-report-rustcrypto-aes-gcm-and-chacha20poly1305-implementation-review/)
 - [OpenSSL](https://ostif.org/the-ostif-and-quarkslab-audit-of-openssl-is-complete/)
 
 ## Benchmark
 
-The result shows that the pure Rust backend is around 20% ~ 50% slower compared to OpenSSL on MacBook Pro mid-2015 (2.8 GHz Quad-Core Intel Core i7).
+On MacBook Pro Mid 2015 (15-inch, 2.8 GHz Quad-Core Intel Core i7) on July 19, 2023.
 
-### OpenSSL backend
+### AES backend (OpenSSL)
 
 ```bash
 $ cargo bench --no-default-features --features openssl
-encrypt 100M            time:   [110.25 ms 115.77 ms 120.22 ms]
-                        change: [-10.123% -3.0504% +4.2342%] (p = 0.44 > 0.05)
-                        No change in performance detected.
+encrypt 100M            time:   [100.21 ms 100.79 ms 101.80 ms]
 
-encrypt 200M            time:   [435.22 ms 450.50 ms 472.17 ms]
-                        change: [-7.5254% +3.6572% +14.508%] (p = 0.56 > 0.05)
-                        No change in performance detected.
-Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high mild
+encrypt 200M            time:   [377.84 ms 384.42 ms 390.58 ms]
+Found 2 outliers among 10 measurements (20.00%)
+  2 (20.00%) high mild
 
-decrypt 100M            time:   [60.439 ms 66.276 ms 70.959 ms]
-                        change: [+0.1986% +7.7620% +15.995%] (p = 0.08 > 0.05)
-                        No change in performance detected.
-
-decrypt 200M            time:   [182.10 ms 185.85 ms 190.63 ms]
-                        change: [-4.8452% +5.2114% +16.370%] (p = 0.40 > 0.05)
-                        No change in performance detected.
+decrypt 100M            time:   [52.430 ms 55.605 ms 60.900 ms]
 Found 1 outliers among 10 measurements (10.00%)
   1 (10.00%) high severe
 
+decrypt 200M            time:   [157.87 ms 158.98 ms 160.01 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
 ```
 
-### Pure Rust backend
+### AES backend (Pure Rust)
 
 ```bash
 $ export RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
 $ cargo bench --no-default-features --features pure
-encrypt 100M            time:   [196.85 ms 201.97 ms 205.67 ms]
-                        change: [-9.8235% -7.9098% -5.9849%] (p = 0.00 < 0.05)
-                        Performance has improved.
+encrypt 100M            time:   [196.63 ms 205.63 ms 222.25 ms]
 Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) low severe
+  1 (10.00%) high severe
 
-encrypt 200M            time:   [554.62 ms 585.01 ms 599.71 ms]
-                        change: [-15.036% -11.698% -8.6460%] (p = 0.00 < 0.05)
-                        Performance has improved.
-
-decrypt 100M            time:   [131.26 ms 134.39 ms 140.54 ms]
-                        change: [-3.9509% +2.9485% +10.198%] (p = 0.42 > 0.05)
-                        No change in performance detected.
-
-decrypt 200M            time:   [288.13 ms 296.64 ms 311.78 ms]
-                        change: [-16.887% -13.038% -8.6679%] (p = 0.00 < 0.05)
-                        Performance has improved.
+Benchmarking encrypt 200M: Warming up for 3.0000 s
+encrypt 200M            time:   [587.78 ms 590.71 ms 592.46 ms]
 Found 1 outliers among 10 measurements (10.00%)
   1 (10.00%) high mild
+
+decrypt 100M            time:   [144.78 ms 145.54 ms 147.17 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+decrypt 200M            time:   [363.14 ms 364.48 ms 365.74 ms]
 ```
 
-## Configuration
+### XChaCha20 backend
+```bash
+$ cargo bench --no-default-features --features xchacha20
+encrypt 100M            time:   [149.52 ms 150.06 ms 150.59 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
 
-You can enable 12 bytes nonce by specify `aes_12bytes_nonce` feature.
+encrypt 200M            time:   [482.27 ms 484.95 ms 487.45 ms]
+Found 3 outliers among 10 measurements (30.00%)
+  2 (20.00%) low severe
+  1 (10.00%) high severe
 
-```toml
-ecies = {version = "0.2", default-features = false, features = ["aes_12bytes_nonce"]}
+decrypt 100M            time:   [98.232 ms 100.37 ms 105.65 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+
+decrypt 200M            time:   [265.62 ms 268.02 ms 269.85 ms]
 ```
-
-Other behaviors can be configured by global static variable:
-
-```rs
-pub struct Config {
-    pub is_ephemeral_key_compressed: bool,
-    pub is_hkdf_key_compressed: bool,
-    pub symmetric_algorithm: SymmetricAlgorithm,
-}
-```
-
-If you set `is_ephemeral_key_compressed: true`, the payload would be like: `33 Bytes + AES` instead of `65 Bytes + AES`.
-
-If you set `is_hkdf_key_compressed: true`, the hkdf key would be derived from `ephemeral public key (compressed) + shared public key (compressed)` instead of `ephemeral public key (uncompressed) + shared public key (uncompressed)`.
-
-```rs
-update_config(Config {
-    is_ephemeral_key_compressed: true,
-    is_hkdf_key_compressed: true,
-    ..Config::default()
-});
-```
-
-For compatibility, make sure different applications share the same configuration.
 
 ## Changelog
 
