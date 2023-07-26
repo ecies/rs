@@ -1,4 +1,11 @@
 #![doc = include_str!("../README.md")]
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 pub use libsecp256k1::{Error as SecpError, PublicKey, SecretKey};
 
@@ -11,9 +18,13 @@ pub mod symmetric;
 /// Utility functions
 pub mod utils;
 
+mod compat;
+
 use config::{get_ephemeral_key_size, is_ephemeral_key_compressed};
 use symmetric::{sym_decrypt, sym_encrypt};
 use utils::{decapsulate, encapsulate, generate_keypair};
+
+use crate::compat::Vec;
 
 /// Encrypt a message by a public key
 ///

@@ -2,8 +2,9 @@ use chacha20poly1305::{
     aead::{generic_array::GenericArray, AeadInPlace},
     KeyInit, XChaCha20Poly1305,
 };
-use rand::{thread_rng, Rng};
+use rand_core::{OsRng, RngCore};
 
+use crate::compat::Vec;
 use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, XCHACHA20_NONCE_LENGTH};
 
 const NONCE_TAG_LENGTH: usize = XCHACHA20_NONCE_LENGTH + AEAD_TAG_LENGTH;
@@ -14,7 +15,7 @@ pub fn encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let aead = XChaCha20Poly1305::new(key);
 
     let mut iv = [0u8; XCHACHA20_NONCE_LENGTH];
-    thread_rng().fill(&mut iv);
+    OsRng.fill_bytes(&mut iv);
     let nonce = GenericArray::from_slice(&iv);
 
     let mut out = Vec::with_capacity(msg.len());

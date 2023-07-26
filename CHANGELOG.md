@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.2.1 ~ 0.2.5
+## 0.2.1 ~ 0.2.6
 
+- Support `no_std`
 - Revamp documentation
 - Revamp configuration and add xchacha20-poly1305 backend
 - Add configuration for more compatibility

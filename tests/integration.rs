@@ -8,8 +8,7 @@ use hex::decode;
 
 const MSG: &str = "helloworld🌍";
 
-#[test]
-fn can_change_behavior_with_config() {
+fn check_config_hkdf_key() {
     let mut two = [0u8; 32];
     let mut three = [0u8; 32];
     two[31] = 2u8;
@@ -25,34 +24,56 @@ fn can_change_behavior_with_config() {
         ..Config::default()
     });
 
-    assert_eq!(encapsulate(&sk2, &pk3), decapsulate(&pk2, &sk3));
+    let encapsulated = encapsulate(&sk2, &pk3).unwrap();
 
+    assert_eq!(encapsulated, decapsulate(&pk2, &sk3).unwrap());
     assert_eq!(
-        encapsulate(&sk2, &pk3).unwrap().to_vec(),
+        encapsulated.to_vec(),
         decode("b192b226edb3f02da11ef9c6ce4afe1c7e40be304e05ae3b988f4834b1cb6c69").unwrap()
     );
+}
+
+fn check_config_ephemeral_key() {
+    let (sk, pk) = generate_keypair();
+    let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
+    let encrypted_1 = encrypt(pk, MSG.as_bytes()).unwrap();
+    assert_eq!(MSG.as_bytes(), decrypt(sk, &encrypted_1).unwrap().as_slice());
 
     update_config(Config {
         is_ephemeral_key_compressed: true,
-        is_hkdf_key_compressed: true,
+        ..Config::default()
     });
 
-    let (sk, pk) = generate_keypair();
-    let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
-
-    assert_eq!(
-        MSG.as_bytes(),
-        decrypt(sk, &encrypt(pk, MSG.as_bytes()).unwrap()).unwrap().as_slice()
-    );
+    let encrypted_2 = encrypt(pk, MSG.as_bytes()).unwrap();
+    assert_eq!(encrypted_1.len() - encrypted_2.len(), 32);
+    assert_eq!(MSG.as_bytes(), decrypt(sk, &encrypted_2).unwrap().as_slice());
 
     reset_config();
+}
+
+#[test]
+fn can_change_behavior_with_config() {
+    check_config_hkdf_key();
+    check_config_ephemeral_key();
+}
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod wasm_tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn can_change_behavior_with_config() {
+        check_config_hkdf_key();
+        check_config_ephemeral_key();
+    }
 }
 
 #[test]
 #[cfg(all(
     not(target_arch = "wasm32"),
     not(feature = "aes-12bytes-nonce"),
-    not(feature = "xchacha20")
+    not(feature = "xchacha20"),
 ))]
 fn is_compatible_with_python() {
     use futures_util::FutureExt;

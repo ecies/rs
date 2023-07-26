@@ -12,6 +12,8 @@ use pure_aes::{decrypt, encrypt};
 #[cfg(feature = "xchacha20")]
 use xchacha20::{decrypt, encrypt};
 
+use crate::compat::Vec;
+
 /// Symmetric encryption wrapper. Openssl AES-256-GCM, pure Rust AES-256-GCM, or XChaCha20-Poly1305
 pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     encrypt(key, msg)
@@ -25,7 +27,7 @@ pub fn sym_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
 #[cfg(test)]
 pub(crate) mod tests {
     use hex::decode; // dev dep
-    use rand::{thread_rng, Rng};
+    use rand_core::{OsRng, RngCore};
 
     use super::*;
 
@@ -52,7 +54,7 @@ pub(crate) mod tests {
     fn test_random_key() {
         let text = b"this is a text";
         let mut key = [0u8; 32];
-        thread_rng().fill(&mut key);
+        OsRng.fill_bytes(&mut key);
 
         assert_eq!(
             text,
