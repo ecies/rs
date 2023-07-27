@@ -3,10 +3,11 @@ use aes_gcm::{
     aes::Aes256,
     AesGcm, KeyInit,
 };
-use rand::{thread_rng, Rng};
+use rand_core::{OsRng, RngCore};
 #[allow(unused_imports)]
 use typenum::consts::{U12, U16};
 
+use crate::compat::Vec;
 use crate::consts::{AEAD_TAG_LENGTH, AES_NONCE_LENGTH, EMPTY_BYTES};
 
 #[cfg(not(feature = "aes-12bytes-nonce"))]
@@ -23,7 +24,7 @@ pub fn encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let aead = Aes256Gcm::new(key);
 
     let mut iv = [0u8; AES_NONCE_LENGTH];
-    thread_rng().fill(&mut iv);
+    OsRng.fill_bytes(&mut iv);
     let nonce = GenericArray::from_slice(&iv);
 
     let mut out = Vec::with_capacity(msg.len());

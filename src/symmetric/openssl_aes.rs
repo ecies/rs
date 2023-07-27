@@ -1,7 +1,8 @@
 use openssl::symm::{decrypt_aead, encrypt_aead, Cipher};
-use rand::{thread_rng, Rng};
+use rand_core::{OsRng, RngCore};
 
 use crate::consts::{AEAD_TAG_LENGTH, AES_NONCE_LENGTH, EMPTY_BYTES};
+use crate::Vec;
 
 const NONCE_TAG_LENGTH: usize = AES_NONCE_LENGTH + AEAD_TAG_LENGTH;
 
@@ -10,7 +11,7 @@ pub fn encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     let cipher = Cipher::aes_256_gcm();
 
     let mut iv = [0u8; AES_NONCE_LENGTH];
-    thread_rng().fill(&mut iv);
+    OsRng.fill_bytes(&mut iv);
 
     let mut tag = [0u8; AEAD_TAG_LENGTH];
 

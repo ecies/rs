@@ -1,6 +1,6 @@
 [package]
 name = "ecies"
-version = "0.2.5"
+version = "0.2.6"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
@@ -20,13 +20,12 @@ homepage = "https://ecies.org/rs/"
 repository = "https://github.com/ecies/rs"
 
 [dependencies]
-hkdf = "0.12.3"
+hkdf = {version = "0.12.3", default-features = false}
 libsecp256k1 = {version = "0.7.1", default-features = false, features = ["static-context"]}
-once_cell = "1.18.0"
-sha2 = "0.10.7"
+sha2 = {version = "0.10.7", default-features = false}
 
 # openssl aes
-openssl = {version = "0.10.55", optional = true}
+openssl = {version = "0.10.55", default-features = false, optional = true}
 
 # pure rust aes
 aes-gcm = {version = "0.10.2", default-features = false, optional = true}
@@ -35,23 +34,35 @@ typenum = {version = "1.16.0", default-features = false, optional = true}
 # chacha20 cipher
 chacha20poly1305 = {version = "0.10.1", default-features = false, optional = true}
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = {version = "0.2.10", features = ["js"]}
-rand = {version = "0.8.5", features = ["getrandom"]}
+# random number generator
+getrandom = {version = "0.2.10", default-features = false}
+rand_core = {version = "0.6.4", default-features = false, features = ["getrandom"]}
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rand = {version = "0.8.5"}
+# configuration
+once_cell = {version = "1.18.0", default-features = false}
+parking_lot = "0.12.1"
+
+[target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
+# only for js (browser or node). if it's not js, like substrate, it won't build
+getrandom = {version = "0.2.10", default-features = false, features = ["js"]}
+wasm-bindgen = {version = "0.2.87", default-features = false}
+
+[target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
+# allows wasm32-wasi to build
+once_cell = {version = "1.18.0", default-features = false, features = ["std"]}
 
 [features]
+std = ["hkdf/std", "sha2/std", "once_cell/std"]
+
 default = ["openssl"]
 
 aes-12bytes-nonce = [] # with feature "openssl" or "pure". default: 16 bytes
 pure = ["aes-gcm/aes", "typenum"]
-xchacha20 = ["chacha20poly1305/std"]
+xchacha20 = ["chacha20poly1305"]
 
 [dev-dependencies]
 criterion = {version = "0.5.1", default-features = false}
-hex = "0.4.3"
+hex = {version = "0.4.3", default-features = false, features = ["alloc"]}
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3.37"

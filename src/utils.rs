@@ -1,8 +1,9 @@
 use hkdf::Hkdf;
 use libsecp256k1::{Error as SecpError, PublicKey, SecretKey};
-use rand::thread_rng;
+use rand_core::OsRng;
 use sha2::Sha256;
 
+use crate::compat::Vec;
 use crate::config::{get_ephemeral_key_size, is_hkdf_key_compressed};
 use crate::consts::EMPTY_BYTES;
 
@@ -11,7 +12,7 @@ pub type SharedSecret = [u8; 32];
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let sk = SecretKey::random(&mut thread_rng());
+    let sk = SecretKey::random(&mut OsRng);
     (sk, PublicKey::from_secret_key(&sk))
 }
 

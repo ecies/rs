@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         toolchain: [stable, beta, nightly]
-        feature: [pure, xchacha20, "pure,aes-12bytes-nonce"]
+        feature: [openssl, pure, xchacha20]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -58,18 +58,24 @@ jobs:
       - name: Check and run lint
         run: cargo check && cargo fmt && cargo clippy
 
-      - name: Run openssl tests
-        run: cargo test
-      - name: Run openssl 12 bytes nonce tests
-        run: cargo test --features aes-12bytes-nonce
-
-      - name: Run pure rust tests
+      - name: Run tests
         run: cargo test --no-default-features --features ${{ matrix.feature }}
+      - name: Run tests with std
+        run: cargo test --no-default-features --features ${{ matrix.feature }},std
+
+      - name: Run tests with 12 bytes nonce
+        run: cargo test --no-default-features --features ${{ matrix.feature }},aes-12bytes-nonce
+        if: matrix.feature != 'xchacha20'
+
+      - name: Run tests with std and 12 bytes nonce
+        run: cargo test --no-default-features --features ${{ matrix.feature }},std,aes-12bytes-nonce
+        if: matrix.feature != 'xchacha20'
 
       - name: Install wasm dep
         run: cargo install wasm-bindgen-cli || true
-      - name: Run wasm tests
+      - name: Run tests on wasm target
         run: cargo test --no-default-features --features ${{ matrix.feature }} --target=wasm32-unknown-unknown
+        if: matrix.feature != 'openssl'
 
       - name: Check cargo package
         run: cargo publish --dry-run
