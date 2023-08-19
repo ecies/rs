@@ -4,7 +4,7 @@
 
 - Support `no_std`
 - Revamp documentation
-- Revamp configuration and add xchacha20-poly1305 backend
+- Revamp configuration and add XChaCha20-Poly1305 backend
 - Add configuration for more compatibility
 - Revamp error handling
 - Migrate to edition 2021

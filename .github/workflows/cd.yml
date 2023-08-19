@@ -12,35 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-node@v3
         with:
           node-version: 20
-      - uses: actions-rs/toolchain@v1
+
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
-          override: true
+          toolchain: ${{ matrix.toolchain }}
           target: wasm32-unknown-unknown
-      - uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-            target
-          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run openssl tests
-        run: cargo test
-      - name: Run pure rust tests
-        run: cargo test --no-default-features --features pure
+      - run: cargo generate-lockfile
 
-      - name: Install wasm dep
-        run: cargo install wasm-bindgen-cli || true
-      - name: Run wasm tests
-        run: cargo test --no-default-features --features pure --target=wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
 
       - name: Publish cargo package
         run: cargo login $CARGO_LOGIN_TOKEN && cargo publish
