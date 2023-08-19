@@ -3,12 +3,13 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1c6d6ed949dd4836ab97421039e8be75)](https://app.codacy.com/gh/ecies/rs/dashboard)
 [![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs)
 [![CI](https://img.shields.io/github/actions/workflow/status/ecies/rs/ci.yml)](https://github.com/ecies/rs/actions)
+[![Codecov](https://img.shields.io/codecov/c/github/ecies/rs.svg)](https://codecov.io/gh/ecies/rs)
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
 [![Doc](https://docs.rs/ecies/badge.svg)](https://docs.rs/ecies/latest/ecies/)
 
 Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
 
-ECIES functionalities are built upon AES-GCM-256 and HKDF-SHA256.
+ECIES functionalities are built upon AES-256-GCM and HKDF-SHA256.
 
 This is the Rust version of [eciespy](https://github.com/ecies/py).
 
@@ -25,7 +26,7 @@ ecies = {version = "0.2", features = ["std"]}
 ```rust
 use ecies::{decrypt, encrypt, utils::generate_keypair};
 
-const MSG: &str = "helloworld";
+const MSG: &str = "helloworld🌍";
 let (sk, pk) = generate_keypair();
 let (sk, pk) = (&sk.serialize(), &pk.serialize());
 
@@ -66,10 +67,10 @@ It's also possible to build to the `wasm32-unknown-unknown` target with the pure
 
 ## Configuration
 
-You can enable 12 bytes nonce by specify `aes-12bytes-nonce` feature.
+You can enable 12 bytes nonce by `aes-12bytes-nonce` feature on OpenSSL or pure Rust AES backend.
 
 ```toml
-ecies = {version = "0.2", features = ["aes-12bytes-nonce"]} # it also works for "pure"
+ecies = {version = "0.2", features = ["aes-12bytes-nonce"]} # it also works with "pure"
 ```
 
 You can also enable a pure Rust [XChaCha20-Poly1305](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305) backend.
@@ -100,19 +101,19 @@ update_config(Config {
 });
 ```
 
-For compatibility, make sure different applications share the same configuration.
+For compatibility, make sure different applications share the same configuration. Normally configuration is only updated once on initialization, if not, beware of race condition.
 
 ## Security
 
-### Why AES-GCM-256 and HKDF-SHA256
+### Why AES-256-GCM and HKDF-SHA256
 
-AEAD scheme like AES-GCM-256 should be your first option for symmetric ciphers, with unique IVs in each encryption.
+AEAD scheme like AES-256-GCM should be your first option for symmetric ciphers, with unique IVs in each encryption.
 
 For key derivation functions on shared points between two asymmetric keys, HKDFs are [proven](https://github.com/ecies/py/issues/82) to be more secure than simple hash functions like SHA256.
 
-### Why XChaCha20-Poly1305 instead of AES-GCM-256
+### Why XChaCha20-Poly1305 instead of AES-256-GCM
 
-XChaCha20-Poly1305 is a competitive alternative to AES-256-GCM because it's fast and constant-time without hardware acceleration (resistent to cache-timing attacks). It also has longer nonce length.
+XChaCha20-Poly1305 is a competitive alternative to AES-256-GCM because it's fast and constant-time without hardware acceleration (resistent to cache-timing attacks). It also has longer nonce length to alleviate the risk of birthday attacks when nonces are generated randomly.
 
 ### Cross-language compatibility
 
@@ -170,6 +171,7 @@ decrypt 200M            time:   [363.14 ms 364.48 ms 365.74 ms]
 ```
 
 ### XChaCha20 backend
+
 ```bash
 $ cargo bench --no-default-features --features xchacha20
 encrypt 100M            time:   [149.52 ms 150.06 ms 150.59 ms]

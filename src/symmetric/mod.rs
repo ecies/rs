@@ -1,108 +1,119 @@
-#[cfg(feature = "openssl")]
-mod openssl_aes;
-#[cfg(feature = "pure")]
-mod pure_aes;
-#[cfg(feature = "xchacha20")]
-mod xchacha20;
-
-#[cfg(feature = "openssl")]
-use openssl_aes::{decrypt, encrypt};
-#[cfg(feature = "pure")]
-use pure_aes::{decrypt, encrypt};
-#[cfg(feature = "xchacha20")]
-use xchacha20::{decrypt, encrypt};
+use rand_core::{OsRng, RngCore};
 
 use crate::compat::Vec;
+use crate::consts::NONCE_LENGTH;
+
+#[cfg(any(feature = "pure", feature = "xchacha20"))]
+mod aead;
+#[cfg(feature = "openssl")]
+mod openssl_aes;
+
+#[cfg(any(feature = "pure", feature = "xchacha20"))]
+use aead::{decrypt, encrypt};
+#[cfg(feature = "openssl")]
+use openssl_aes::{decrypt, encrypt};
 
 /// Symmetric encryption wrapper. Openssl AES-256-GCM, pure Rust AES-256-GCM, or XChaCha20-Poly1305
+/// Nonces are generated randomly.
+///
+/// For 16 bytes nonce AES-256-GCM and 24 bytes nonce XChaCha20-Poly1305 it's safe.
+/// For 12 bytes nonce AES-256-GCM, the key SHOULD be unique for each message to avoid collisions.
 pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
-    encrypt(key, msg)
+    let mut nonce = [0u8; NONCE_LENGTH];
+    OsRng.fill_bytes(&mut nonce);
+    encrypt(key, &nonce, msg)
 }
 
 /// Symmetric decryption wrapper
-pub fn sym_decrypt(key: &[u8], encrypted_msg: &[u8]) -> Option<Vec<u8>> {
-    decrypt(key, encrypted_msg)
+pub fn sym_decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
+    decrypt(key, encrypted)
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
-    use hex::decode; // dev dep
-    use rand_core::{OsRng, RngCore};
-
+mod tests {
     use super::*;
-
-    /// Remove 0x prefix of a hex string
-    pub fn remove0x(hex: &str) -> &str {
-        if hex.starts_with("0x") || hex.starts_with("0X") {
-            return &hex[2..];
-        }
-        hex
-    }
-
-    /// Convert hex string to u8 vector
-    pub fn decode_hex(hex: &str) -> Vec<u8> {
-        decode(remove0x(hex)).unwrap()
-    }
+    use crate::{consts::NONCE_TAG_LENGTH, utils::tests::decode_hex};
 
     #[test]
-    fn test_attempt_to_decrypt_invalid_message() {
+    pub(super) fn attempts_to_decrypt_invalid_message() {
         assert!(decrypt(&[], &[]).is_none());
-        assert!(decrypt(&[], &[0; 16]).is_none());
+        assert!(decrypt(&[], &[1u8; 16]).is_none());
+        assert!(decrypt(&[], &[1u8; NONCE_TAG_LENGTH - 1]).is_none());
     }
 
     #[test]
-    fn test_random_key() {
-        let text = b"this is a text";
+    pub(super) fn test_random_key() {
         let mut key = [0u8; 32];
-        OsRng.fill_bytes(&mut key);
 
-        assert_eq!(
-            text,
-            decrypt(&key, encrypt(&key, text).unwrap().as_slice())
-                .unwrap()
-                .as_slice()
-        );
-
-        let utf8_text = "😀😀😀😀".as_bytes();
-        assert_eq!(
-            utf8_text,
-            decrypt(&key, encrypt(&key, utf8_text).unwrap().as_slice())
-                .unwrap()
-                .as_slice()
-        );
+        let texts = [b"this is a text", "😀😀😀😀".as_bytes()];
+        for msg in texts.iter() {
+            OsRng.fill_bytes(&mut key);
+            let encrypted = sym_encrypt(&key, msg).unwrap();
+            assert_eq!(msg.to_vec(), sym_decrypt(&key, &encrypted).unwrap());
+        }
     }
 
     #[test]
     #[cfg(all(not(feature = "aes-12bytes-nonce"), not(feature = "xchacha20")))]
-    fn test_aes_known_key() {
+    pub(super) fn test_aes_known_key() {
         let text = b"helloworld";
         let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
-        let iv = decode_hex("f3e1ba810d2c8900b11312b7c725565f");
+        let nonce = decode_hex("f3e1ba810d2c8900b11312b7c725565f");
         let tag = decode_hex("ec3b71e17c11dbe31484da9450edcf6c");
         let encrypted = decode_hex("02d2ffed93b856f148b9");
 
-        let mut cipher_text = Vec::new();
-        cipher_text.extend(iv);
-        cipher_text.extend(tag);
-        cipher_text.extend(encrypted);
+        check_known(text, &key, &nonce, &tag, &encrypted);
+    }
 
-        assert_eq!(text, decrypt(&key, &cipher_text).unwrap().as_slice());
+    #[test]
+    #[cfg(all(feature = "aes-12bytes-nonce", not(feature = "xchacha20")))]
+    pub(super) fn test_aes_known_key() {
+        let text = b"";
+        let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
+        let nonce = decode_hex("000000000000000000000000");
+        let tag = decode_hex("530f8afbc74536b9a963b4f1c4cb738b");
+        let encrypted = decode_hex("");
+
+        check_known(text, &key, &nonce, &tag, &encrypted);
     }
 
     #[test]
     #[cfg(feature = "xchacha20")]
-    fn test_xchacha20_known_key() {
+    pub(super) fn test_xchacha20_known_key() {
         let text = b"helloworld";
         let key = decode_hex("27bd6ec46292a3b421cdaf8a3f0ca759cbc67bcbe7c5855aa0d1e0700fd0e828");
         let nonce = decode_hex("fbd5dd10431af533c403d6f4fa629931e5f31872d2f7e7b6");
         let tag = decode_hex("5b5ccc27324af03b7ca92dd067ad6eb5");
         let encrypted = decode_hex("aa0664f3c00a09d098bf");
 
-        let mut cipher_text = Vec::with_capacity(encrypted.len() + 24);
+        check_known(text, &key, &nonce, &tag, &encrypted);
+    }
+
+    fn check_known(msg: &[u8], key: &[u8], nonce: &[u8], tag: &[u8], encrypted: &[u8]) {
+        let mut cipher_text = Vec::new();
         cipher_text.extend(nonce);
         cipher_text.extend(tag);
         cipher_text.extend(encrypted);
+        assert_eq!(msg, &sym_decrypt(key, &cipher_text).unwrap());
+        assert_eq!(cipher_text, encrypt(key, nonce, msg).unwrap());
+    }
+}
 
-        assert_eq!(text, sym_decrypt(&key, &cipher_text).unwrap().as_slice());
+#[cfg(all(test, target_arch = "wasm32"))]
+mod wasm_tests {
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_wasm() {
+        super::tests::test_random_key();
+        #[cfg(all(not(feature = "aes-12bytes-nonce"), not(feature = "xchacha20")))]
+        super::tests::test_aes_known_key();
+        #[cfg(feature = "xchacha20")]
+        super::tests::test_xchacha20_known_key();
+    }
+
+    #[wasm_bindgen_test]
+    fn test_wasm_error() {
+        super::tests::attempts_to_decrypt_invalid_message();
     }
 }
