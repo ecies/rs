@@ -1,12 +1,13 @@
 [package]
 name = "ecies"
-version = "0.2.6"
+version = "0.2.7"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
-description = "Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust"
+description = "Elliptic Curve Integrated Encryption Scheme for secp256k1/curve25519"
 edition = "2021"
 keywords = [
   "secp256k1",
+  "curve25519",
   "crypto",
   "ecc",
   "ecies",
@@ -21,11 +22,14 @@ repository = "https://github.com/ecies/rs"
 
 [dependencies]
 hkdf = {version = "0.12.3", default-features = false}
-libsecp256k1 = {version = "0.7.1", default-features = false, features = ["static-context"]}
 sha2 = {version = "0.10.7", default-features = false}
 
+# elliptic curves
+libsecp256k1 = {version = "0.7.1", default-features = false, features = ["static-context"], optional = true}
+x25519-dalek = {version = "2.0.0", default-features = false, features = ["static_secrets"], optional = true}
+
 # openssl aes
-openssl = {version = "0.10.56", default-features = false, optional = true}
+openssl = {version = "0.10.57", default-features = false, optional = true}
 
 # pure rust aes
 aes-gcm = {version = "0.10.2", default-features = false, optional = true}
@@ -45,6 +49,7 @@ parking_lot = "0.12.1"
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
 getrandom = {version = "0.2.10", default-features = false, features = ["js"]}
+once_cell = {version = "1.18.0", default-features = false, features = ["std"]}
 wasm-bindgen = {version = "0.2.87", default-features = false}
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
@@ -52,16 +57,21 @@ wasm-bindgen = {version = "0.2.87", default-features = false}
 once_cell = {version = "1.18.0", default-features = false, features = ["std"]}
 
 [features]
+default = ["openssl"]
 std = ["hkdf/std", "sha2/std", "once_cell/std"]
 
-default = ["openssl"]
+# curve
+secp256k1 = ["libsecp256k1"]
+x25519 = ["x25519-dalek"]
 
-aes-12bytes-nonce = [] # with feature "openssl" or "pure". default: 16 bytes
-pure = ["aes-gcm/aes", "typenum"]
-xchacha20 = ["chacha20poly1305"]
+# cipher
+aes-12bytes-nonce = ["secp256k1"] # with feature "openssl" or "pure". default: 16 bytes
+openssl = ["dep:openssl", "secp256k1"]
+pure = ["aes-gcm/aes", "typenum", "secp256k1"]
+xchacha20 = ["chacha20poly1305", "secp256k1"]
 
 [dev-dependencies]
-criterion = {version = "0.5.1", default-features = false}
+criterion = {version = "0.4.0", default-features = false}
 hex = {version = "0.4.3", default-features = false, features = ["alloc"]}
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]

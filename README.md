@@ -28,7 +28,10 @@ use ecies::{decrypt, encrypt, utils::generate_keypair};
 
 const MSG: &str = "helloworld🌍";
 let (sk, pk) = generate_keypair();
+#[cfg(not(feature = "x25519"))]
 let (sk, pk) = (&sk.serialize(), &pk.serialize());
+#[cfg(feature = "x25519")]
+let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
 
 let msg = MSG.as_bytes();
 assert_eq!(
