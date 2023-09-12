@@ -19,7 +19,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: stable
           target: wasm32-unknown-unknown
 
       - run: cargo generate-lockfile

@@ -1,6 +1,7 @@
 #[test]
 #[cfg(all(
     not(target_arch = "wasm32"),
+    not(feature = "x25519"),
     not(feature = "aes-12bytes-nonce"),
     not(feature = "xchacha20"),
 ))]

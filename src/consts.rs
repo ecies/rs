@@ -19,3 +19,6 @@ pub const NONCE_TAG_LENGTH: usize = NONCE_LENGTH + AEAD_TAG_LENGTH;
 
 /// Empty bytes array
 pub const EMPTY_BYTES: [u8; 0] = [];
+
+/// Shared secret derived from key exchange by hkdf
+pub type SharedSecret = [u8; 32];
