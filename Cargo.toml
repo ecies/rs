@@ -71,7 +71,7 @@ pure = ["aes-gcm/aes", "typenum", "secp256k1"]
 xchacha20 = ["chacha20poly1305", "secp256k1"]
 
 [dev-dependencies]
-criterion = {version = "0.4.0", default-features = false}
+criterion = {version = "0.5.1", default-features = false}
 hex = {version = "0.4.3", default-features = false, features = ["alloc"]}
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
