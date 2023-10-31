@@ -1,14 +1,17 @@
 use rand_core::OsRng;
 use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
 
-use super::hkdf_derive;
 use crate::compat::Vec;
 use crate::consts::SharedSecret;
+use crate::symmetric::hkdf_derive;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Error {
     InvalidMessage,
 }
+
+#[cfg(feature = "std")]
+impl std::error::Error for Error {}
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {

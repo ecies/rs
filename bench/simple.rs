@@ -1,7 +1,5 @@
 use core::time::Duration;
-
 use criterion::{criterion_group, criterion_main, Criterion};
-use ecies::{decrypt, encrypt, utils::generate_keypair};
 
 const BIG_MSG_SIZE: usize = 100 * 1024 * 1024;
 const BIGGER_MSG_SIZE: usize = 200 * 1024 * 1024;
@@ -10,6 +8,8 @@ const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 const BIGGER_MSG: [u8; BIGGER_MSG_SIZE] = [2u8; BIGGER_MSG_SIZE];
 
 fn criterion_benchmark(c: &mut Criterion) {
+    use ecies::{decrypt, encrypt, utils::generate_keypair};
+
     let (sk, pk) = generate_keypair();
     let (sk, pk) = (&sk.serialize(), &pk.serialize());
 
