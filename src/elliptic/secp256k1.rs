@@ -1,10 +1,10 @@
 use libsecp256k1::{PublicKey, SecretKey};
 use rand_core::OsRng;
 
-use super::hkdf_derive;
 use crate::compat::Vec;
 use crate::config::is_hkdf_key_compressed;
 use crate::consts::SharedSecret;
+use crate::symmetric::hkdf_derive;
 
 pub use libsecp256k1::Error;
 

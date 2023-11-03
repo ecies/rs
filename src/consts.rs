@@ -1,6 +1,8 @@
 /// Compressed public key size
+// #[cfg(feature = "secp256k1")]
 pub use libsecp256k1::util::COMPRESSED_PUBLIC_KEY_SIZE;
 /// Uncompressed public key size
+// #[cfg(feature = "secp256k1")]
 pub use libsecp256k1::util::FULL_PUBLIC_KEY_SIZE as UNCOMPRESSED_PUBLIC_KEY_SIZE;
 
 /// Nonce length. AES (12/16 bytes) or XChaCha20 (24 bytes)

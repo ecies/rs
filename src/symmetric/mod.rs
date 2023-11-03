@@ -5,13 +5,18 @@ use crate::consts::NONCE_LENGTH;
 
 #[cfg(any(feature = "pure", feature = "xchacha20"))]
 mod aead;
-#[cfg(feature = "openssl")]
-mod openssl_aes;
-
 #[cfg(any(feature = "pure", feature = "xchacha20"))]
 use aead::{decrypt, encrypt};
+
+#[cfg(feature = "openssl")]
+mod openssl_aes;
 #[cfg(feature = "openssl")]
 use openssl_aes::{decrypt, encrypt};
+
+// #[cfg(any(feature = "secp256k1", feature = "x25519"))]
+mod hash;
+// #[cfg(any(feature = "secp256k1", feature = "x25519"))]
+pub(crate) use hash::hkdf_derive;
 
 /// Symmetric encryption wrapper. Openssl AES-256-GCM, pure Rust AES-256-GCM, or XChaCha20-Poly1305
 /// Nonces are generated randomly.

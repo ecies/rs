@@ -4,6 +4,7 @@
     not(feature = "x25519"),
     not(feature = "aes-12bytes-nonce"),
     not(feature = "xchacha20"),
+    // feature = "secp256k1"
 ))]
 fn is_compatible_with_python() {
     use futures_util::FutureExt;

@@ -3,11 +3,10 @@ name = "ecies"
 version = "0.2.7"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
-description = "Elliptic Curve Integrated Encryption Scheme for secp256k1/curve25519"
+description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
 edition = "2021"
 keywords = [
   "secp256k1",
-  "curve25519",
   "crypto",
   "ecc",
   "ecies",
@@ -22,18 +21,18 @@ repository = "https://github.com/ecies/rs"
 
 [dependencies]
 hkdf = {version = "0.12.3", default-features = false}
-sha2 = {version = "0.10.7", default-features = false}
+sha2 = {version = "0.10.8", default-features = false}
 
 # elliptic curves
-libsecp256k1 = {version = "0.7.1", default-features = false, features = ["static-context"], optional = true}
-x25519-dalek = {version = "2.0.0", default-features = false, features = ["static_secrets"], optional = true}
+libsecp256k1 = {version = "0.7.1", default-features = false, features = ["static-context"]}
+# x25519-dalek = {version = "2.0.0", default-features = false, features = ["static_secrets"], optional = true}
 
 # openssl aes
 openssl = {version = "0.10.57", default-features = false, optional = true}
 
 # pure rust aes
-aes-gcm = {version = "0.10.2", default-features = false, optional = true}
-typenum = {version = "1.16.0", default-features = false, optional = true}
+aes-gcm = {version = "0.10.3", default-features = false, optional = true}
+typenum = {version = "1.17.0", default-features = false, optional = true}
 
 # chacha20 cipher
 chacha20poly1305 = {version = "0.10.1", default-features = false, optional = true}
@@ -58,17 +57,17 @@ once_cell = {version = "1.18.0", default-features = false, features = ["std"]}
 
 [features]
 default = ["openssl"]
-std = ["hkdf/std", "sha2/std", "once_cell/std"]
+std = ["hkdf/std", "sha2/std", "once_cell/std", "libsecp256k1/std"]
 
 # curve
-secp256k1 = ["libsecp256k1"]
-x25519 = ["x25519-dalek"]
+# secp256k1 = ["libsecp256k1"]
+# x25519 = ["x25519-dalek"]
 
 # cipher
-aes-12bytes-nonce = ["secp256k1"] # with feature "openssl" or "pure". default: 16 bytes
-openssl = ["dep:openssl", "secp256k1"]
-pure = ["aes-gcm/aes", "typenum", "secp256k1"]
-xchacha20 = ["chacha20poly1305", "secp256k1"]
+aes-12bytes-nonce = [] # with feature "openssl" or "pure". default: 16 bytes
+openssl = ["dep:openssl"]
+pure = ["aes-gcm/aes", "typenum"]
+xchacha20 = ["chacha20poly1305"]
 
 [dev-dependencies]
 criterion = {version = "0.4.0", default-features = false}
@@ -78,9 +77,9 @@ hex = {version = "0.4.3", default-features = false, features = ["alloc"]}
 wasm-bindgen-test = "0.3.37"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-futures-util = "0.3.28"
-reqwest = "0.11.18"
-tokio = {version = "1.32.0", features = ["rt-multi-thread"]}
+futures-util = "0.3.29"
+reqwest = "0.11.22"
+tokio = {version = "1.33.0", features = ["rt-multi-thread"]}
 
 [[bench]]
 harness = false

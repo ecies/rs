@@ -7,10 +7,11 @@ extern crate std;
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
-#[cfg(not(feature = "x25519"))]
+// #[cfg(all(feature = "secp256k1", not(feature = "x25519")))]
 pub use libsecp256k1::{PublicKey, SecretKey};
-#[cfg(feature = "x25519")]
-pub use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
+
+// #[cfg(all(feature = "x25519", not(feature = "secp256k1")))]
+// pub use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
 
 /// ECIES configuration
 pub mod config;
