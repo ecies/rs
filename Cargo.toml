@@ -20,7 +20,7 @@ homepage = "https://ecies.org/rs/"
 repository = "https://github.com/ecies/rs"
 
 [dependencies]
-hkdf = {version = "0.12.3", default-features = false}
+hkdf = {version = "0.12.4", default-features = false}
 sha2 = {version = "0.10.8", default-features = false}
 
 # elliptic curves
@@ -28,7 +28,7 @@ libsecp256k1 = {version = "0.7.1", default-features = false, features = ["static
 # x25519-dalek = {version = "2.0.0", default-features = false, features = ["static_secrets"], optional = true}
 
 # openssl aes
-openssl = {version = "0.10.57", default-features = false, optional = true}
+openssl = {version = "0.10.64", default-features = false, optional = true}
 
 # pure rust aes
 aes-gcm = {version = "0.10.3", default-features = false, optional = true}
@@ -38,22 +38,22 @@ typenum = {version = "1.17.0", default-features = false, optional = true}
 chacha20poly1305 = {version = "0.10.1", default-features = false, optional = true}
 
 # random number generator
-getrandom = {version = "0.2.10", default-features = false}
+getrandom = {version = "0.2.12", default-features = false}
 rand_core = {version = "0.6.4", default-features = false, features = ["getrandom"]}
 
 # configuration
-once_cell = {version = "1.18.0", default-features = false}
+once_cell = {version = "1.19.0", default-features = false}
 parking_lot = "0.12.1"
 
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
-getrandom = {version = "0.2.10", default-features = false, features = ["js"]}
-once_cell = {version = "1.18.0", default-features = false, features = ["std"]}
-wasm-bindgen = {version = "0.2.87", default-features = false}
+getrandom = {version = "0.2.12", default-features = false, features = ["js"]}
+once_cell = {version = "1.19.0", default-features = false, features = ["std"]}
+wasm-bindgen = {version = "0.2.92", default-features = false}
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
 # allows wasm32-wasi to build
-once_cell = {version = "1.18.0", default-features = false, features = ["std"]}
+once_cell = {version = "1.19.0", default-features = false, features = ["std"]}
 
 [features]
 default = ["openssl"]

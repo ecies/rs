@@ -91,9 +91,9 @@ pub struct Config {
 }
 ```
 
-If you set `is_ephemeral_key_compressed: true`, the payload would be like: `33 Bytes + AES` instead of `65 Bytes + AES`.
+On `is_ephemeral_key_compressed: true`, the payload would be like: `33 Bytes + AES` instead of `65 Bytes + AES`.
 
-If you set `is_hkdf_key_compressed: true`, the hkdf key would be derived from `ephemeral public key (compressed) + shared public key (compressed)` instead of `ephemeral public key (uncompressed) + shared public key (uncompressed)`.
+On `is_hkdf_key_compressed: true`, the hkdf key would be derived from `ephemeral public key (compressed) + shared public key (compressed)` instead of `ephemeral public key (uncompressed) + shared public key (uncompressed)`.
 
 ```rust
 use ecies::config::{Config, update_config};
