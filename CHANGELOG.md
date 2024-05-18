@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1 ~ 0.2.6
+## 0.2.1 ~ 0.2.7
 
 - Support `no_std`
 - Revamp documentation

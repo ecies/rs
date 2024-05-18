@@ -38,16 +38,16 @@ typenum = {version = "1.17.0", default-features = false, optional = true}
 chacha20poly1305 = {version = "0.10.1", default-features = false, optional = true}
 
 # random number generator
-getrandom = {version = "0.2.12", default-features = false}
+getrandom = {version = "=0.2.14", default-features = false}
 rand_core = {version = "0.6.4", default-features = false, features = ["getrandom"]}
 
 # configuration
-once_cell = {version = "1.19.0", default-features = false}
-parking_lot = "0.12.1"
+once_cell = {version = "1.19.0", default-features = false, features = ["critical-section"]}
+parking_lot = "0.12.2"
 
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
-getrandom = {version = "0.2.12", default-features = false, features = ["js"]}
+getrandom = {version = "=0.2.14", default-features = false, features = ["js"]}
 once_cell = {version = "1.19.0", default-features = false, features = ["std"]}
 wasm-bindgen = {version = "0.2.92", default-features = false}
 
@@ -74,12 +74,12 @@ criterion = {version = "0.4.0", default-features = false}
 hex = {version = "0.4.3", default-features = false, features = ["alloc"]}
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.37"
+wasm-bindgen-test = "0.3.42"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-futures-util = "0.3.29"
-reqwest = "0.12.2"
-tokio = {version = "1.33.0", features = ["rt-multi-thread"]}
+futures-util = "0.3.30"
+reqwest = "0.12.4"
+tokio = {version = "1.37.0", default-features = false, features = ["rt-multi-thread"]}
 
 [[bench]]
 harness = false
