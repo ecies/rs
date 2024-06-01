@@ -38,7 +38,7 @@ typenum = {version = "1.17.0", default-features = false, optional = true}
 chacha20poly1305 = {version = "0.10.1", default-features = false, optional = true}
 
 # random number generator
-getrandom = {version = "=0.2.14", default-features = false}
+getrandom = {version = "=0.2.15", default-features = false}
 rand_core = {version = "0.6.4", default-features = false, features = ["getrandom"]}
 
 # configuration
