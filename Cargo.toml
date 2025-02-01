@@ -39,7 +39,7 @@ chacha20poly1305 = {version = "0.10.1", default-features = false, optional = tru
 
 # random number generator
 getrandom = {version = "=0.2.14", default-features = false}
-rand_core = {version = "0.6.4", default-features = false, features = ["getrandom"]}
+rand_core = {version = "0.9.0", default-features = false, features = ["getrandom"]}
 
 # configuration
 once_cell = {version = "1.19.0", default-features = false, features = ["critical-section"]}
