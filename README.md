@@ -56,7 +56,7 @@ Pure Rust implementation is sometimes useful, such as building on WASM:
 cargo build --no-default-features --features pure --target=wasm32-unknown-unknown
 ```
 
-If you select the pure Rust backend on modern CPUs, consider building with
+If you select the pure Rust backend on modern x86 CPUs, consider building with
 
 ```bash
 RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
@@ -116,7 +116,7 @@ For key derivation functions on shared points between two asymmetric keys, HKDFs
 
 ### Why XChaCha20-Poly1305 instead of AES-256-GCM
 
-XChaCha20-Poly1305 is a competitive alternative to AES-256-GCM because it's fast and constant-time without hardware acceleration (resistent to cache-timing attacks). It also has longer nonce length to alleviate the risk of birthday attacks when nonces are generated randomly.
+XChaCha20-Poly1305 is a competitive alternative to AES-256-GCM because it's fast and constant-time without hardware acceleration (resistant to cache-timing attacks). It also has longer nonce length to alleviate the risk of birthday attacks when nonces are generated randomly.
 
 ### Cross-language compatibility
 

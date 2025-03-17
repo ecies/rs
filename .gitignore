@@ -11,3 +11,5 @@ Cargo.lock
 
 # llvm coverage files
 .lcov.info
+codecov
+codecov.*

@@ -12,13 +12,12 @@ pub fn encrypt(key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     output.extend([0u8; AEAD_TAG_LENGTH]);
 
     let tag = &mut output[NONCE_LENGTH..NONCE_TAG_LENGTH];
-
-    if let Ok(encrypted) = encrypt_aead(cipher, key, Some(nonce), &EMPTY_BYTES, msg, tag) {
-        output.extend(encrypted);
-        Some(output)
-    } else {
-        None
-    }
+    encrypt_aead(cipher, key, Some(nonce), &EMPTY_BYTES, msg, tag)
+        .map(|encrypted| {
+            output.extend(encrypted);
+            output
+        })
+        .ok()
 }
 
 /// AES-256-GCM decryption wrapper
