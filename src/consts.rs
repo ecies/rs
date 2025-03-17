@@ -1,10 +1,13 @@
 /// Compressed public key size
-// #[cfg(feature = "secp256k1")]
+#[cfg(not(feature = "x25519"))]
 pub const COMPRESSED_PUBLIC_KEY_SIZE: usize = 33;
 
 /// Uncompressed public key size
-// #[cfg(feature = "secp256k1")]
+#[cfg(not(feature = "x25519"))]
 pub const UNCOMPRESSED_PUBLIC_KEY_SIZE: usize = 65;
+
+#[cfg(feature = "x25519")]
+pub const PUBLIC_KEY_SIZE: usize = 32;
 
 /// Nonce length. AES (12/16 bytes) or XChaCha20 (24 bytes)
 #[cfg(all(not(feature = "aes-12bytes-nonce"), not(feature = "xchacha20")))]

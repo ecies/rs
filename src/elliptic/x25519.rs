@@ -113,7 +113,7 @@ mod known_tests {
 
 #[cfg(test)]
 mod error_tests {
-    use super::{Error, generate_keypair};
+    use super::{generate_keypair, Error};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "helloworld🌍";

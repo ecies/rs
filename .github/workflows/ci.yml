@@ -55,6 +55,12 @@ jobs:
         run: cargo doc --no-deps
 
       - run: sh ./scripts/test.sh
+        env:
+          CURVE: secp256k1
+
+      - run: sh ./scripts/test.sh
+        env:
+          CURVE: x25519
 
       # Pure Rust AES and XChaCha20 on WASM target
       - run: cargo install wasm-bindgen-cli || true

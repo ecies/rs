@@ -1,6 +1,6 @@
 {
   "rust-analyzer.cargo.features": [
-    "openssl"
+    "pure"
   ],
   "rust-analyzer.cargo.noDefaultFeatures": true,
   "rust-analyzer.procMacro.enable": true,

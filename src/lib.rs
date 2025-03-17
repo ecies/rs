@@ -23,9 +23,8 @@ use config::{get_ephemeral_key_size, is_ephemeral_key_compressed};
 use elliptic::{decapsulate, encapsulate, generate_keypair, parse_pk, parse_sk, pk_to_vec, Error};
 use symmetric::{sym_decrypt, sym_encrypt};
 
-pub use elliptic::{PublicKey, SecretKey};
-
 use crate::compat::Vec;
+pub use elliptic::{PublicKey, SecretKey};
 
 /// Encrypt a message by a public key
 ///
