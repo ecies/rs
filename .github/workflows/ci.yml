@@ -16,13 +16,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        toolchain: ["1.73.0", stable, beta, nightly]
+        toolchain: [stable, beta, nightly]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -79,10 +79,23 @@ jobs:
 
       # Coverage
       - run: cargo llvm-cov --no-default-features --features pure --lcov --output-path .lcov.info
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
+        if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
         with:
           files: .lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Check cargo package
         run: cargo publish --dry-run
         if: matrix.os != 'windows-latest'
+
+  check-msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.73.0
+      - run: cargo generate-lockfile
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build

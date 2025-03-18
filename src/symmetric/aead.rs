@@ -38,12 +38,12 @@ pub fn encrypt(key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     output.extend(msg);
 
     let nonce = GenericArray::from_slice(nonce);
-    if let Ok(tag) = aead.encrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut output[NONCE_TAG_LENGTH..]) {
-        output[NONCE_LENGTH..NONCE_TAG_LENGTH].copy_from_slice(tag.as_slice());
-        Some(output)
-    } else {
-        None
-    }
+    aead.encrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut output[NONCE_TAG_LENGTH..])
+        .map(|tag| {
+            output[NONCE_LENGTH..NONCE_TAG_LENGTH].copy_from_slice(tag.as_slice());
+            output
+        })
+        .ok()
 }
 
 /// Pure Rust AES-256-GCM or XChaCha20-Poly1305 decryption wrapper
@@ -60,12 +60,7 @@ pub fn decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(encrypted.len() - NONCE_TAG_LENGTH);
     out.extend(&encrypted[NONCE_TAG_LENGTH..]);
 
-    if aead
-        .decrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut out, tag)
-        .is_ok()
-    {
-        Some(out)
-    } else {
-        None
-    }
+    aead.decrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut out, tag)
+        .map(|_| out)
+        .ok()
 }
