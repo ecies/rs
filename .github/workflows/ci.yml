@@ -54,7 +54,7 @@ jobs:
       - name: Check doc
         run: cargo doc --no-deps
 
-      - run: ./scripts/test.sh
+      - run: sh ./scripts/test.sh
 
       # Pure Rust AES and XChaCha20 on WASM target
       - run: cargo install wasm-bindgen-cli || true
