@@ -7,12 +7,6 @@ extern crate std;
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
-// #[cfg(all(feature = "secp256k1", not(feature = "x25519")))]
-pub use libsecp256k1::{PublicKey, SecretKey};
-
-// #[cfg(all(feature = "x25519", not(feature = "secp256k1")))]
-// pub use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
-
 /// ECIES configuration
 pub mod config;
 /// Constant variables
@@ -28,6 +22,8 @@ mod elliptic;
 use config::{get_ephemeral_key_size, is_ephemeral_key_compressed};
 use elliptic::{decapsulate, encapsulate, generate_keypair, parse_pk, parse_sk, pk_to_vec, Error};
 use symmetric::{sym_decrypt, sym_encrypt};
+
+pub use elliptic::{PublicKey, SecretKey};
 
 use crate::compat::Vec;
 

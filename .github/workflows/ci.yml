@@ -54,21 +54,7 @@ jobs:
       - name: Check doc
         run: cargo doc --no-deps
 
-      # OpenSSL AES
-      - run: cargo test --no-default-features --features openssl
-      - run: cargo test --no-default-features --features openssl,std
-      - run: cargo test --no-default-features --features openssl,aes-12bytes-nonce
-      - run: cargo test --no-default-features --features openssl,std,aes-12bytes-nonce
-
-      # Pure Rust AES
-      - run: cargo test --no-default-features --features pure
-      - run: cargo test --no-default-features --features pure,std
-      - run: cargo test --no-default-features --features pure,aes-12bytes-nonce
-      - run: cargo test --no-default-features --features pure,std,aes-12bytes-nonce
-
-      # XChaCha20
-      - run: cargo test --no-default-features --features xchacha20
-      - run: cargo test --no-default-features --features xchacha20,std
+      - run: ./scripts/test.sh
 
       # Pure Rust AES and XChaCha20 on WASM target
       - run: cargo install wasm-bindgen-cli || true
