@@ -25,8 +25,12 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("encrypt 100M", |b| b.iter(|| encrypt(pk, big).unwrap()));
     c.bench_function("encrypt 200M", |b| b.iter(|| encrypt(pk, bigger).unwrap()));
-    c.bench_function("decrypt 100M", |b| b.iter(|| decrypt(sk, big_encrypted).unwrap()));
-    c.bench_function("decrypt 200M", |b| b.iter(|| decrypt(sk, bigger_encrypted).unwrap()));
+    c.bench_function("decrypt 100M", |b| {
+        b.iter(|| decrypt(sk, big_encrypted).unwrap())
+    });
+    c.bench_function("decrypt 200M", |b| {
+        b.iter(|| decrypt(sk, bigger_encrypted).unwrap())
+    });
 }
 
 criterion_group! {

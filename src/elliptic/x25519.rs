@@ -29,14 +29,25 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 }
 
 /// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<SharedSecret, Error> {
+pub fn encapsulate(
+    sk: &SecretKey,
+    peer_pk: &PublicKey,
+    _compressed: bool,
+) -> Result<SharedSecret, Error> {
     let shared_point = sk.diffie_hellman(&peer_pk);
     let sender_point = PublicKey::from(sk);
-    Ok(get_shared_secret(sender_point.as_bytes(), shared_point.as_bytes()))
+    Ok(get_shared_secret(
+        sender_point.as_bytes(),
+        shared_point.as_bytes(),
+    ))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<SharedSecret, Error> {
+pub fn decapsulate(
+    pk: &PublicKey,
+    peer_sk: &SecretKey,
+    _compressed: bool,
+) -> Result<SharedSecret, Error> {
     let shared_point = peer_sk.diffie_hellman(&pk);
     Ok(get_shared_secret(pk.as_bytes(), shared_point.as_bytes()))
 }
@@ -75,9 +86,15 @@ mod random_tests {
 
     fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
-        assert_eq!(msg.to_vec(), decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap());
+        assert_eq!(
+            msg.to_vec(),
+            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap()
+        );
         let msg = &BIG_MSG;
-        assert_eq!(msg.to_vec(), decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap());
+        assert_eq!(
+            msg.to_vec(),
+            decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap()
+        );
     }
 
     #[test]
@@ -138,7 +155,10 @@ mod error_tests {
         let (sk, _) = generate_keypair();
 
         assert_eq!(decrypt(sk.as_bytes(), &[]), Err(Error::InvalidMessage));
-        assert_eq!(decrypt(sk.as_bytes(), &[0u8; 32]), Err(Error::InvalidMessage));
+        assert_eq!(
+            decrypt(sk.as_bytes(), &[0u8; 32]),
+            Err(Error::InvalidMessage)
+        );
     }
 
     #[test]
@@ -147,7 +167,10 @@ mod error_tests {
         let (sk2, _) = generate_keypair();
 
         let encrypted = encrypt(pk1.as_bytes(), MSG.as_bytes()).unwrap();
-        assert_eq!(decrypt(sk2.as_bytes(), &encrypted), Err(Error::InvalidMessage));
+        assert_eq!(
+            decrypt(sk2.as_bytes(), &encrypted),
+            Err(Error::InvalidMessage)
+        );
     }
 }
 

@@ -20,6 +20,9 @@ mod tests {
     fn test_key_exchange() {
         let (sk1, pk1) = generate_keypair();
         let (sk2, pk2) = generate_keypair();
-        assert_eq!(encapsulate(&sk2, &pk1).unwrap(), decapsulate(&pk2, &sk1).unwrap());
+        assert_eq!(
+            encapsulate(&sk2, &pk1, false).unwrap(),
+            decapsulate(&pk2, &sk1, false).unwrap()
+        );
     }
 }
