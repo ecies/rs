@@ -1,4 +1,4 @@
-use libsecp256k1::{PublicKey, SecretKey};
+pub use libsecp256k1::{PublicKey, SecretKey};
 use rand_core::OsRng;
 
 use crate::compat::Vec;
@@ -61,7 +61,7 @@ fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey) -> Shar
 }
 
 #[cfg(test)]
-mod tests {
+mod known_tests {
     use super::*;
 
     use crate::utils::tests::decode_hex;
@@ -85,15 +85,6 @@ mod tests {
         for sk in valid_sks.iter() {
             parse_sk(sk).unwrap();
         }
-    }
-
-    #[test]
-    fn test_key_exchange() {
-        let (sk1, pk1) = generate_keypair();
-        let (sk2, pk2) = generate_keypair();
-        assert_ne!(sk1, sk2);
-        assert_ne!(pk1, pk2);
-        assert_eq!(encapsulate(&sk2, &pk1).unwrap(), decapsulate(&pk2, &sk1).unwrap());
     }
 
     /// Generate two secret keys with values 2 and 3
@@ -121,8 +112,8 @@ mod tests {
 }
 
 #[cfg(test)]
-mod lib_tests {
-    use super::{generate_keypair, Error};
+mod random_tests {
+    use super::generate_keypair;
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "helloworld🌍";
@@ -135,6 +126,37 @@ mod lib_tests {
         let msg = &BIG_MSG;
         assert_eq!(msg.to_vec(), decrypt(sk, &encrypt(pk, msg).unwrap()).unwrap());
     }
+
+    #[test]
+    fn test_keypair() {
+        let (sk1, pk1) = generate_keypair();
+        let (sk2, pk2) = generate_keypair();
+
+        assert_ne!(sk1, sk2);
+        assert_ne!(pk1, pk2);
+    }
+
+    #[test]
+    pub fn test_compressed_public() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
+        test_enc_dec(sk, pk);
+    }
+
+    #[test]
+    pub fn test_uncompressed_public() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize());
+        test_enc_dec(sk, pk);
+    }
+}
+
+#[cfg(test)]
+mod error_tests {
+    use super::{generate_keypair, Error};
+    use crate::{decrypt, encrypt};
+
+    const MSG: &str = "helloworld🌍";
 
     #[test]
     pub fn attempts_to_encrypt_with_invalid_key() {
@@ -162,20 +184,6 @@ mod lib_tests {
         let encrypted = encrypt(&pk1.serialize_compressed(), MSG.as_bytes()).unwrap();
         assert_eq!(decrypt(&sk2.serialize(), &encrypted), Err(Error::InvalidMessage));
     }
-
-    #[test]
-    pub fn test_compressed_public() {
-        let (sk, pk) = generate_keypair();
-        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
-        test_enc_dec(sk, pk);
-    }
-
-    #[test]
-    pub fn test_uncompressed_public() {
-        let (sk, pk) = generate_keypair();
-        let (sk, pk) = (&sk.serialize(), &pk.serialize());
-        test_enc_dec(sk, pk);
-    }
 }
 
 #[cfg(test)]
@@ -185,7 +193,7 @@ mod config_tests {
     use crate::config::{reset_config, update_config, Config};
     use crate::utils::tests::decode_hex;
     use crate::{decrypt, encrypt};
-    use tests::get_sk2_sk3;
+    use known_tests::get_sk2_sk3;
 
     const MSG: &str = "helloworld🌍";
 
@@ -234,8 +242,8 @@ mod wasm_tests {
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test]
-    fn test() {
-        super::tests::test_known_shared_secret();
+    fn test_known() {
+        super::known_tests::test_known_shared_secret();
     }
 
     #[wasm_bindgen_test]
@@ -245,16 +253,16 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
-    fn test_lib() {
-        super::lib_tests::test_compressed_public();
-        super::lib_tests::test_uncompressed_public();
+    fn test_random() {
+        super::random_tests::test_compressed_public();
+        super::random_tests::test_uncompressed_public();
     }
 
     #[wasm_bindgen_test]
     fn test_error() {
-        super::lib_tests::attempts_to_encrypt_with_invalid_key();
-        super::lib_tests::attempts_to_decrypt_with_invalid_key();
-        super::lib_tests::attempts_to_decrypt_incorrect_message();
-        super::lib_tests::attempts_to_decrypt_with_another_key();
+        super::error_tests::attempts_to_encrypt_with_invalid_key();
+        super::error_tests::attempts_to_decrypt_with_invalid_key();
+        super::error_tests::attempts_to_decrypt_incorrect_message();
+        super::error_tests::attempts_to_decrypt_with_another_key();
     }
 }
