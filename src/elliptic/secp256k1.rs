@@ -109,6 +109,16 @@ mod known_tests {
             decode_hex("6f982d63e8590c9d9b5b4c1959ff80315d772edd8f60287c9361d548d5200f82")
         );
     }
+
+    #[cfg(feature = "xchacha20")]
+    #[test]
+    pub fn test_known_encrypted_xchacha20() {
+        use crate::decrypt;
+
+        let sk2 = decode_hex("0000000000000000000000000000000000000000000000000000000000000002");
+        let encrypted = decode_hex("0x04e314abc14398e07974cd50221b682ed5f0629e977345fc03e2047208ee6e279ffb2a6942878d3798c968d89e59c999e082b0598d1b641968c48c8d47c570210d0ab1ade95eeca1080c45366562f9983faa423ee3fd3260757053d5843c5f453e1ee6bb955c8e5d4aee8572139357a091909357a8931b");
+        assert_eq!(decrypt(&sk2, &encrypted).unwrap(), "helloworld🌍".as_bytes());
+    }
 }
 
 #[cfg(test)]

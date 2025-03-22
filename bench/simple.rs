@@ -11,7 +11,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     use ecies::{decrypt, encrypt, utils::generate_keypair};
 
     let (sk, pk) = generate_keypair();
+
+    #[cfg(not(feature = "x25519"))]
     let (sk, pk) = (&sk.serialize(), &pk.serialize());
+    #[cfg(feature = "x25519")]
+    let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
 
     let big = &BIG_MSG;
     let big_encrypted = &encrypt(pk, big).unwrap();

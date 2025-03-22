@@ -29,8 +29,13 @@ pub fn is_ephemeral_key_compressed() -> bool {
     ECIES_CONFIG.read().is_ephemeral_key_compressed
 }
 
-/// Get ephemeral key size: compressed(33) or uncompressed(65)
-// #[cfg(feature = "secp256k1")]
+/// Get hkdf key derived from compressed shared point or not
+pub fn is_hkdf_key_compressed() -> bool {
+    ECIES_CONFIG.read().is_hkdf_key_compressed
+}
+
+/// Get ephemeral key size: compressed(33) or uncompressed(65) on secp256k1 or 32 on x25519
+#[cfg(not(feature = "x25519"))]
 pub fn get_ephemeral_key_size() -> usize {
     use crate::consts::{COMPRESSED_PUBLIC_KEY_SIZE, UNCOMPRESSED_PUBLIC_KEY_SIZE};
 
@@ -41,17 +46,9 @@ pub fn get_ephemeral_key_size() -> usize {
     }
 }
 
-// #[cfg(feature = "x25519")]
-// pub fn get_ephemeral_key_size() -> usize {
-//     32
-// }
+#[cfg(feature = "x25519")]
+pub fn get_ephemeral_key_size() -> usize {
+    use crate::consts::PUBLIC_KEY_SIZE;
 
-// #[cfg(all(not(feature = "x25519"), not(feature = "secp256k1")))]
-// pub fn get_ephemeral_key_size() -> usize {
-//     panic!("Not implemented")
-// }
-
-/// Get hkdf key derived from compressed shared point or not
-pub fn is_hkdf_key_compressed() -> bool {
-    ECIES_CONFIG.read().is_hkdf_key_compressed
+    PUBLIC_KEY_SIZE
 }

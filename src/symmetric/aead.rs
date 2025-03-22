@@ -9,15 +9,11 @@ use chacha20poly1305::{
     aead::{generic_array::GenericArray, AeadInPlace},
     KeyInit, XChaCha20Poly1305,
 };
-#[cfg(all(feature = "pure", feature = "aes-12bytes-nonce"))]
-use typenum::consts::U12;
-#[cfg(all(feature = "pure", not(feature = "aes-12bytes-nonce")))]
-use typenum::consts::U16;
 
 #[cfg(all(feature = "pure", feature = "aes-12bytes-nonce"))]
-type Cipher = AesGcm<Aes256, U12>;
+type Cipher = AesGcm<Aes256, typenum::consts::U12>;
 #[cfg(all(feature = "pure", not(feature = "aes-12bytes-nonce")))]
-type Cipher = AesGcm<Aes256, U16>;
+type Cipher = AesGcm<Aes256, typenum::consts::U16>;
 #[cfg(feature = "xchacha20")]
 type Cipher = XChaCha20Poly1305;
 

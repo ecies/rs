@@ -5,6 +5,7 @@
   "language": "en",
   // words - list of words to be always considered correct
   "words": [
+    "armv",
     "bindgen",
     "chacha",
     "Codacy",
@@ -17,6 +18,7 @@
     "ecies",
     "eciespy",
     "eciesrs",
+    "getrandom",
     "helloworld",
     "HKDF",
     "keypair",
@@ -45,6 +47,6 @@
     ".cspell.jsonc",
     "LICENSE",
     "package.json",
-    "yarn.lock"
+    "Cargo.lock"
   ]
 }

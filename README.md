@@ -7,9 +7,9 @@
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
 [![Doc](https://docs.rs/ecies/badge.svg)](https://docs.rs/ecies/latest/ecies/)
 
-Elliptic Curve Integrated Encryption Scheme for secp256k1 in Rust, based on [pure Rust implementation](https://github.com/paritytech/libsecp256k1) of secp256k1.
+Elliptic Curve Integrated Encryption Scheme for secp256k1/x25519 in Rust, based on pure-Rust secp256k1/x25519 implementation.
 
-ECIES functionalities are built upon AES-256-GCM and HKDF-SHA256.
+ECIES functionalities are built upon AES-256-GCM/XChaCha20-Poly1305 and HKDF-SHA256.
 
 This is the Rust version of [eciespy](https://github.com/ecies/py).
 
@@ -40,6 +40,14 @@ assert_eq!(
 );
 ```
 
+## Optional x25519 Support
+
+You can choose to use x25519 (key exchange function on curve25519) instead of secp256k1:
+
+```toml
+ecies = {version = "0.2", default-features = false, features = ["x25519"]}
+```
+
 ## Optional pure Rust AES backend
 
 You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
@@ -62,11 +70,17 @@ If you select the pure Rust backend on modern x86 CPUs, consider building with
 RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
 ```
 
-to speed up AES encryption/decryption. This would be no longer necessary when [`aes-gcm` supports automatic CPU detection](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
+It can speed up AES encryption/decryption. This would be no longer necessary when [`aes-gcm` supports automatic CPU detection](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
+
+On ARM CPUs, consider building with
+
+```bash
+RUSTFLAGS="--cfg aes_armv8" # Rust 1.61+
+```
 
 ## WASM compatibility
 
-It's also possible to build to the `wasm32-unknown-unknown` target with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
+It's also possible to build to the `wasm32-unknown-unknown` target (or `wasm32-wasip2`) with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
 
 ## Configuration
 
@@ -81,6 +95,8 @@ You can also enable a pure Rust [XChaCha20-Poly1305](https://github.com/RustCryp
 ```toml
 ecies = {version = "0.2", default-features = false, features = ["xchacha20"]}
 ```
+
+### Secp256k1-specific configuration
 
 Other behaviors can be configured by global static variable:
 
