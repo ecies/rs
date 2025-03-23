@@ -109,11 +109,21 @@ mod known_tests {
             "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742",
         )
     }
+
+    #[cfg(not(feature = "xchacha20"))]
+    #[test]
+    pub fn test_known_encrypted() {
+        use crate::decrypt;
+
+        let sk = decode_hex("9434b8fc5036bf967b8483a1bf7378f094d90e01393e4e880db0080022ce6330");
+        let encrypted = decode_hex("02c351532928d20b9be0c354e029fd387e032d5318d71ca0ea361b8c62bae86794f6208f17b01affe66ab9edc728a25fac317b41dee123c3aee8684e9c771cfbc2c94c0fe0945ea7cad55b3eb11712");
+        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
+    }
 }
 
 #[cfg(test)]
 mod error_tests {
-    use super::{Error, generate_keypair};
+    use super::{generate_keypair, Error};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "helloworld🌍";
@@ -153,6 +163,8 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn test_known() {
         super::known_tests::test_known_shared_point();
+        #[cfg(not(feature = "xchacha20"))]
+        super::known_tests::test_known_encrypted();
     }
 
     #[wasm_bindgen_test]

@@ -2,4 +2,4 @@
 runner = 'wasm-bindgen-test-runner'
 
 [env]
-RUST_TEST_THREADS = "1" # restirct concurrency
+RUST_TEST_THREADS = "1" # restrict concurrency

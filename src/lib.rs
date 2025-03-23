@@ -23,9 +23,8 @@ use config::{get_ephemeral_key_size, is_ephemeral_key_compressed};
 use elliptic::{decapsulate, encapsulate, generate_keypair, parse_pk, parse_sk, pk_to_vec, Error};
 use symmetric::{sym_decrypt, sym_encrypt};
 
-pub use elliptic::{PublicKey, SecretKey};
-
 use crate::compat::Vec;
+pub use elliptic::{PublicKey, SecretKey};
 
 /// Encrypt a message by a public key
 ///
@@ -37,8 +36,8 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
     let receiver_pk = parse_pk(receiver_pub)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
-    let aes_key = encapsulate(&ephemeral_sk, &receiver_pk)?;
-    let encrypted = sym_encrypt(&aes_key, msg).ok_or(Error::InvalidMessage)?;
+    let sym_key = encapsulate(&ephemeral_sk, &receiver_pk)?;
+    let encrypted = sym_encrypt(&sym_key, msg).ok_or(Error::InvalidMessage)?;
 
     let is_compressed = is_ephemeral_key_compressed();
     let key_size = get_ephemeral_key_size();
@@ -69,7 +68,6 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
     let ephemeral_pk = parse_pk(&msg[..key_size])?;
     let encrypted = &msg[key_size..];
 
-    let aes_key = decapsulate(&ephemeral_pk, &receiver_sk)?;
-
-    sym_decrypt(&aes_key, encrypted).ok_or(Error::InvalidMessage)
+    let sym_key = decapsulate(&ephemeral_pk, &receiver_sk)?;
+    sym_decrypt(&sym_key, encrypted).ok_or(Error::InvalidMessage)
 }

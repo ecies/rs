@@ -5,7 +5,7 @@ version = "0.2.8"
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
 edition = "2021"
-keywords = ["secp256k1", "crypto", "ecc", "ecies", "cryptocurrency"]
+keywords = ["secp256k1", "x25519", "crypto", "ecc", "ecies", "cryptocurrency"]
 license = "MIT"
 readme = "README.md"
 # links
@@ -14,24 +14,26 @@ homepage = "https://ecies.org/rs/"
 repository = "https://github.com/ecies/rs"
 
 [dependencies]
-hkdf = { version = "0.12.4", default-features = false }
-sha2 = { version = "0.10.8", default-features = false }
-
 # elliptic curves
 libsecp256k1 = { version = "0.7.2", default-features = false, features = [
   "static-context",
 ] }
-# x25519-dalek = {version = "2.0.0", default-features = false, features = ["static_secrets"], optional = true}
+x25519-dalek = { version = "2.0.1", default-features = false, features = [
+  "static_secrets",
+], optional = true }
 
-# openssl aes
+# symmetric ciphers
+# aes (openssl)
 openssl = { version = "0.10.71", default-features = false, optional = true }
-
-# pure rust aes
+# aes (pure Rust)
 aes-gcm = { version = "0.10.3", default-features = false, optional = true }
 typenum = { version = "1.18.0", default-features = false, optional = true }
-
-# chacha20 cipher
+# xchacha20
 chacha20poly1305 = { version = "0.10.1", default-features = false, optional = true }
+
+# hash
+hkdf = { version = "0.12.4", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
 
 # random number generator
 getrandom = { version = "=0.2.15", default-features = false }
@@ -52,22 +54,26 @@ once_cell = { version = "1.21.1", default-features = false, features = ["std"] }
 wasm-bindgen = { version = "0.2.100", default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
-# allows wasm32-wasi to build
+# for wasm32-wasi
 once_cell = { version = "1.21.1", default-features = false, features = ["std"] }
 
 [features]
 default = ["openssl"]
-std = ["hkdf/std", "sha2/std", "once_cell/std", "libsecp256k1/std"]
+std = ["hkdf/std", "sha2/std", "once_cell/std"]
 
-# curve
-# secp256k1 = ["libsecp256k1"]
-# x25519 = ["x25519-dalek"]
+# curves
+# no usage, TODO: make optional after 0.3.0
+secp256k1 = []            #  ["libsecp256k1"]
+x25519 = ["x25519-dalek"]
 
-# cipher
-aes-12bytes-nonce = []            # with feature "openssl" or "pure". default: 16 bytes
+# aes
 openssl = ["dep:openssl"]
 pure = ["aes-gcm/aes", "typenum"]
-xchacha20 = ["chacha20poly1305"]
+# with feature "openssl" or "pure" (aes-256-gcm)
+aes-12bytes-nonce = [] # default: 16 bytes without this
+
+# xchacha20
+xchacha20 = ["chacha20poly1305/alloc"]
 
 [dev-dependencies]
 criterion = { version = "0.5.1", default-features = false }
@@ -78,7 +84,7 @@ wasm-bindgen-test = "0.3.50"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 futures-util = "0.3.31"
-reqwest = "0.12.14"
+reqwest = "0.12.15"
 tokio = { version = "1.44.1", default-features = false, features = [
   "rt-multi-thread",
 ] }
