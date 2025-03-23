@@ -5,7 +5,13 @@ version = "0.2.8"
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
 edition = "2021"
-keywords = ["secp256k1", "x25519", "crypto", "ecc", "ecies", "cryptocurrency"]
+keywords = [ # at most five
+  "secp256k1",
+  "curve25519",
+  "crypto",
+  "ecies",
+  "cryptocurrency",
+]
 license = "MIT"
 readme = "README.md"
 # links
@@ -36,7 +42,7 @@ hkdf = { version = "0.12.4", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 
 # random number generator
-getrandom = { version = "=0.2.15", default-features = false }
+getrandom = { version = "0.2.15", default-features = false }
 rand_core = { version = "0.6.4", default-features = false, features = [
   "getrandom",
 ] }
@@ -49,7 +55,7 @@ parking_lot = "0.12.3"
 
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
-getrandom = { version = "=0.2.15", default-features = false, features = ["js"] }
+getrandom = { version = "0.2.15", default-features = false, features = ["js"] }
 once_cell = { version = "1.21.1", default-features = false, features = ["std"] }
 wasm-bindgen = { version = "0.2.100", default-features = false }
 
@@ -63,12 +69,13 @@ std = ["hkdf/std", "sha2/std", "once_cell/std"]
 
 # curves
 # no usage, TODO: make optional after 0.3.0
-secp256k1 = []            #  ["libsecp256k1"]
-x25519 = ["x25519-dalek"]
+secp256k1 = []                #  ["dep:libsecp256k1"]
+x25519 = ["dep:x25519-dalek"]
 
 # aes
+# TODO: rename to `aes-openssl` and `aes-rust`
 openssl = ["dep:openssl"]
-pure = ["aes-gcm/aes", "typenum"]
+pure = ["aes-gcm/aes", "typenum"] # TODO: use dep syntax
 # with feature "openssl" or "pure" (aes-256-gcm)
 aes-12bytes-nonce = [] # default: 16 bytes without this
 
