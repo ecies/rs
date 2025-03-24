@@ -1,13 +1,11 @@
 #[cfg(all(feature = "pure", not(feature = "xchacha20")))]
-use aes_gcm::{
-    aead::{generic_array::GenericArray, AeadInPlace},
-    aes::Aes256,
-    AesGcm, KeyInit,
-};
+use aes_gcm::{self as cipher, aes::Aes256, AesGcm};
 #[cfg(all(feature = "xchacha20", not(feature = "pure")))]
-use chacha20poly1305::{
+use chacha20poly1305::{self as cipher, XChaCha20Poly1305};
+
+use cipher::{
     aead::{generic_array::GenericArray, AeadInPlace},
-    KeyInit, XChaCha20Poly1305,
+    KeyInit,
 };
 
 #[cfg(all(feature = "pure", feature = "aes-12bytes-nonce"))]

@@ -62,46 +62,45 @@ fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey) -> Shar
 
 #[cfg(test)]
 mod known_tests {
-    use super::*;
+    use super::{encapsulate, parse_sk, Error, PublicKey, SecretKey};
 
+    use crate::decrypt;
     use crate::utils::tests::decode_hex;
 
+    pub fn get_sk(i: u8) -> SecretKey {
+        let mut sk = [0u8; 32];
+        sk[31] = i;
+        SecretKey::parse_slice(&sk).unwrap()
+    }
+
     #[test]
-    fn test_secret_validity() {
+    fn test_invalid_secret() {
         // 0 < private key < group order is valid
-        let mut zero = [0u8; 32];
+        let zero = [0u8; 32];
         let group_order = decode_hex("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
         let invalid_sks = [zero.to_vec(), group_order];
 
         for sk in invalid_sks.iter() {
             assert_eq!(parse_sk(sk).err().unwrap(), Error::InvalidSecretKey);
         }
+    }
 
-        zero[31] = 1;
+    #[test]
+    fn test_valid_secret() {
+        let one = get_sk(1);
+        assert!(parse_sk(&one.serialize()).is_ok());
 
-        let one = zero;
         let group_order_minus_1 = decode_hex("0Xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140");
-        let valid_sks = [one.to_vec(), group_order_minus_1];
+        let valid_sks = [group_order_minus_1];
         for sk in valid_sks.iter() {
             parse_sk(sk).unwrap();
         }
     }
 
-    /// Generate two secret keys with values 2 and 3
-    pub fn get_sk2_sk3() -> (SecretKey, SecretKey) {
-        let mut two = [0u8; 32];
-        let mut three = [0u8; 32];
-        two[31] = 2u8;
-        three[31] = 3u8;
-
-        let sk2 = SecretKey::parse_slice(&two).unwrap();
-        let sk3 = SecretKey::parse_slice(&three).unwrap();
-        (sk2, sk3)
-    }
-
     #[test]
     pub fn test_known_shared_secret() {
-        let (sk2, sk3) = get_sk2_sk3();
+        let sk2 = get_sk(2);
+        let sk3 = get_sk(3);
         let pk3 = PublicKey::from_secret_key(&sk3);
 
         assert_eq!(
@@ -110,14 +109,28 @@ mod known_tests {
         );
     }
 
+    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
+    #[test]
+    pub fn test_known_encrypted() {
+        let sk2 = decode_hex("e520872701d9ec44dbac2eab85512ad14ad0c42e01de56d7b528abd8524fcb47");
+        let encrypted = decode_hex("0x047be1885aeb48d4d4db0c992996725d3264784fef88c5b60782f8d0f940c213227fc3f904f846d5ec3d0fba6653754501e8ebadc421aa3892a20fef33cff0206047058a4cfb4efbeae96b2d019b4ab2edce33328748a0d008a69c8f5816b72d45bd9b5a41bb6ea0127ab23057ec6fcd");
+        assert_eq!(decrypt(&sk2, &encrypted).unwrap(), "hello world🌍".as_bytes());
+    }
+
+    #[cfg(all(not(feature = "xchacha20"), feature = "aes-12bytes-nonce"))]
+    #[test]
+    pub fn test_known_encrypted_short_nonce() {
+        let sk2 = decode_hex("562b6cd3611d463f2c59218f1be2816472ad4a489450873dd585de7df662bb68");
+        let encrypted = decode_hex("04e1b4678e49066bb9e12cc39aa303bf46b1bf4f565ffa56b9e5ebfa05b756612a548b06dfdd1d06afb64ab7a7e52e26e3a1c69da8fe0c3ea125848d44066f90c826f9a8b0c8951a06d9b20b3d434dc650862d85fcd4fb4b3f30e0658661d24cb9c31bcae0bf56564495c64b");
+        assert_eq!(decrypt(&sk2, &encrypted).unwrap(), "hello world🌍".as_bytes());
+    }
+
     #[cfg(feature = "xchacha20")]
     #[test]
     pub fn test_known_encrypted_xchacha20() {
-        use crate::decrypt;
-
-        let sk2 = decode_hex("0000000000000000000000000000000000000000000000000000000000000002");
-        let encrypted = decode_hex("0x04e314abc14398e07974cd50221b682ed5f0629e977345fc03e2047208ee6e279ffb2a6942878d3798c968d89e59c999e082b0598d1b641968c48c8d47c570210d0ab1ade95eeca1080c45366562f9983faa423ee3fd3260757053d5843c5f453e1ee6bb955c8e5d4aee8572139357a091909357a8931b");
-        assert_eq!(decrypt(&sk2, &encrypted).unwrap(), "helloworld🌍".as_bytes());
+        let sk2 = decode_hex("9445d8b9911622546a266b2e663bf2b498073a64279409afb9ef20f8259c651f");
+        let encrypted = decode_hex("04eaf35ad4dde0ace3f673fec6be164dc68e11aa9c1988d4c1b91f0ccdef94cf591aae4e9daf5f8a87837136fc70811df852015a8b4e2cb374c27db16933536085f34470ffef72667bbe984c145302fc8d37f66563339c47f41ef871ee0ebda8c1bad133c3b203c769cb694e5adbd6c9f02b2eedd939875a");
+        assert_eq!(decrypt(&sk2, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 }
 
@@ -198,18 +211,19 @@ mod error_tests {
 
 #[cfg(test)]
 mod config_tests {
-    use super::*;
+    use super::known_tests::get_sk;
+    use super::{encapsulate, generate_keypair, PublicKey};
 
     use crate::config::{reset_config, update_config, Config};
     use crate::utils::tests::decode_hex;
     use crate::{decrypt, encrypt};
-    use known_tests::get_sk2_sk3;
 
     const MSG: &str = "helloworld🌍";
 
     #[test]
     pub fn test_known_hkdf_config() {
-        let (sk2, sk3) = get_sk2_sk3();
+        let sk2 = get_sk(2);
+        let sk3 = get_sk(3);
         let pk3 = PublicKey::from_secret_key(&sk3);
 
         update_config(Config {
@@ -217,10 +231,8 @@ mod config_tests {
             ..Config::default()
         });
 
-        let encapsulated = encapsulate(&sk2, &pk3).unwrap();
-
         assert_eq!(
-            encapsulated.to_vec(),
+            encapsulate(&sk2, &pk3).unwrap().to_vec(),
             decode_hex("b192b226edb3f02da11ef9c6ce4afe1c7e40be304e05ae3b988f4834b1cb6c69")
         );
 
@@ -254,6 +266,12 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn test_known() {
         super::known_tests::test_known_shared_secret();
+        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
+        super::known_tests::test_known_encrypted();
+        #[cfg(all(not(feature = "xchacha20"), feature = "aes-12bytes-nonce"))]
+        super::known_tests::test_known_encrypted_short_nonce();
+        #[cfg(feature = "xchacha20")]
+        super::known_tests::test_known_encrypted_xchacha20();
     }
 
     #[wasm_bindgen_test]
