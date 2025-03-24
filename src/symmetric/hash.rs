@@ -4,11 +4,11 @@ use sha2::Sha256;
 use crate::compat::Vec;
 use crate::consts::{SharedSecret, EMPTY_BYTES};
 
-pub fn hkdf_derive(sender_point: &[u8], shared_point: &[u8]) -> SharedSecret {
-    let size = sender_point.len() + shared_point.len();
+pub fn hkdf_derive(sender_bytes: &[u8], shared_bytes: &[u8]) -> SharedSecret {
+    let size = sender_bytes.len() + shared_bytes.len();
     let mut master = Vec::with_capacity(size);
-    master.extend(sender_point);
-    master.extend(shared_point);
+    master.extend(sender_bytes);
+    master.extend(shared_bytes);
     hkdf_sha256(&master)
 }
 

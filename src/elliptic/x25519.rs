@@ -60,8 +60,8 @@ pub fn pk_to_vec(pk: &PublicKey, _compressed: bool) -> Vec<u8> {
     pk.as_bytes().to_vec()
 }
 
-fn get_shared_secret(sender_point: &[u8], shared_point: &[u8]) -> SharedSecret {
-    hkdf_derive(sender_point, shared_point)
+fn get_shared_secret(sender_bytes: &[u8], shared_bytes: &[u8]) -> SharedSecret {
+    hkdf_derive(sender_bytes, shared_bytes)
 }
 
 #[cfg(test)]

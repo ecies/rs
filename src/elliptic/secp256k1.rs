@@ -20,14 +20,16 @@ pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<SharedSecret, 
     let mut shared_point = *peer_pk;
     shared_point.tweak_mul_assign(sk)?;
     let sender_point = &PublicKey::from_secret_key(sk);
-    Ok(get_shared_secret(sender_point, &shared_point))
+    // TODO: move compressed: bool to arg
+    Ok(get_shared_secret(sender_point, &shared_point, is_hkdf_key_compressed()))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<SharedSecret, Error> {
     let mut shared_point = *pk;
     shared_point.tweak_mul_assign(peer_sk)?;
-    Ok(get_shared_secret(pk, &shared_point))
+    // TODO: move compressed: bool to arg
+    Ok(get_shared_secret(pk, &shared_point, is_hkdf_key_compressed()))
 }
 
 /// Parse secret key bytes
@@ -49,15 +51,16 @@ pub fn pk_to_vec(pk: &PublicKey, compressed: bool) -> Vec<u8> {
     }
 }
 
-fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey) -> SharedSecret {
-    if is_hkdf_key_compressed() {
-        hkdf_derive(
+fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey, compressed: bool) -> SharedSecret {
+    let (sender_bytes, shared_bytes): (&[u8], &[u8]) = if compressed {
+        (
             &sender_point.serialize_compressed(),
             &shared_point.serialize_compressed(),
         )
     } else {
-        hkdf_derive(&sender_point.serialize(), &shared_point.serialize())
-    }
+        (&sender_point.serialize(), &shared_point.serialize())
+    };
+    hkdf_derive(sender_bytes, shared_bytes)
 }
 
 #[cfg(test)]
