@@ -12,10 +12,12 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let (sk, pk) = generate_keypair();
 
-    #[cfg(not(feature = "x25519"))]
+    #[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
     let (sk, pk) = (&sk.serialize(), &pk.serialize());
     #[cfg(feature = "x25519")]
     let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
+    #[cfg(feature = "ed25519")]
+    let (sk, pk) = (&sk, &pk);
 
     let big = &BIG_MSG;
     let big_encrypted = &encrypt(pk, big).unwrap();

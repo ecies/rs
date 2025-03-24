@@ -7,5 +7,5 @@ set -e
 CURVE=x25519 ./scripts/test.sh
 CURVE=x25519 ./scripts/test-wasm.sh
 
-# CURVE=ed25519 ./scripts/test.sh
-# CURVE=ed25519 ./scripts/test-wasm.sh
+CURVE=ed25519 ./scripts/test.sh
+CURVE=ed25519 ./scripts/test-wasm.sh

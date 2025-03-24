@@ -1,14 +1,15 @@
 [package]
 name = "ecies"
-version = "0.2.8"
+version = "0.2.9"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
 edition = "2021"
+rust-version = "1.65"
 keywords = [ # at most five
   "secp256k1",
-  "curve25519",
   "x25519",
+  "ed25519",
   "ecies",
   "cryptography",
 ]
@@ -24,10 +25,13 @@ repository = "https://github.com/ecies/rs"
 libsecp256k1 = { version = "0.7.2", default-features = false, features = [
   "static-context",
 ] }
-curve25519-dalek = { version = "4.1.3", default-features = false, optional = true }
+curve25519-dalek = { version = "4.1.3", default-features = false, features = [
+  "precomputed-tables",
+], optional = true }
 x25519-dalek = { version = "2.0.1", default-features = false, features = [
   "static_secrets",
 ], optional = true }
+ed25519-dalek = { version = "2.1.1", default-features = false, optional = true }
 
 # symmetric ciphers
 # aes (openssl)
@@ -51,7 +55,7 @@ rand_core = { version = "0.6.4", default-features = false, features = [
 ] }
 
 # configuration
-once_cell = { version = "1.21.1", default-features = false, features = [
+once_cell = { version = "1.21.2", default-features = false, features = [
   "critical-section",
 ] }
 parking_lot = "0.12.3"
@@ -59,12 +63,12 @@ parking_lot = "0.12.3"
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
 getrandom = { version = "0.2.15", default-features = false, features = ["js"] }
-once_cell = { version = "1.21.1", default-features = false, features = ["std"] }
+once_cell = { version = "1.21.2", default-features = false, features = ["std"] }
 wasm-bindgen = { version = "0.2.100", default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
 # for wasm32-wasip2
-once_cell = { version = "1.21.1", default-features = false, features = ["std"] }
+once_cell = { version = "1.21.2", default-features = false, features = ["std"] }
 
 [features]
 default = ["openssl"]
@@ -74,14 +78,18 @@ std = ["hkdf/std", "sha2/std", "once_cell/std"]
 # no usage, TODO: make optional after 0.3.0: secp256k1 = ["dep:libsecp256k1"]
 secp256k1 = []
 x25519 = ["dep:curve25519-dalek", "dep:x25519-dalek"]
+ed25519 = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
 
 # aes
-# TODO: rename to `aes-openssl` and `aes-rust`
-openssl = ["dep:openssl"]
-pure = ["aes-gcm", "typenum"] # TODO: dep syntax
+aes-gcm-openssl = ["dep:openssl"]
+aes-gcm-rust = ["aes-gcm", "typenum"] # TODO: dep syntax
+# 12 bytes nonce, default: 16 bytes
+aes-gcm-short-nonce = []
 
-# with feature "openssl" or "pure" (aes-256-gcm)
-aes-12bytes-nonce = [] # default: 16 bytes without this
+# deprecated aes features, TODO: remove
+openssl = ["aes-gcm-openssl"]
+pure = ["aes-gcm-rust"]
+aes-12bytes-nonce = ["aes-gcm-short-nonce"]
 
 # xchacha20
 xchacha20 = ["chacha20poly1305"] # TODO: dep syntax

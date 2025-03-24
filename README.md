@@ -8,7 +8,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/ecies/rs/ci.yml)](https://github.com/ecies/rs/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/ecies/rs.svg)](https://codecov.io/gh/ecies/rs)
 
-Elliptic Curve Integrated Encryption Scheme for secp256k1/x25519 in Rust, based on pure-Rust secp256k1/x25519 implementation.
+Elliptic Curve Integrated Encryption Scheme for secp256k1/curve25519 in Rust, based on pure-Rust secp256k1/curve25519 implementation.
 
 ECIES functionalities are built upon AES-256-GCM/XChaCha20-Poly1305 and HKDF-SHA256.
 
@@ -21,18 +21,20 @@ This library can be compiled to the WASM target at your option, see [WASM compat
 `no_std` is enabled by default. You can enable `std` with `std` feature.
 
 ```toml
-ecies = {version = "0.2", features = ["std"]}
+ecies = {version = "0.2", features = ["std"]} # MSRV is 1.65
 ```
 
 ```rust
 use ecies::{decrypt, encrypt, utils::generate_keypair};
 
-const MSG: &str = "helloworld🌍";
+const MSG: &str = "hello world🌍";
 let (sk, pk) = generate_keypair();
-#[cfg(not(feature = "x25519"))]
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 let (sk, pk) = (&sk.serialize(), &pk.serialize());
 #[cfg(feature = "x25519")]
 let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
+#[cfg(feature = "ed25519")]
+let (sk, pk) = (&sk, &pk);
 
 let msg = MSG.as_bytes();
 assert_eq!(
@@ -41,12 +43,13 @@ assert_eq!(
 );
 ```
 
-## Optional x25519 Support
+## Optional x25519/ed25519 Support
 
-You can choose to use x25519 (key exchange function on curve25519) instead of secp256k1:
+You can choose to use x25519 (key exchange function on curve25519) or ed25519 (signature algorithm on curve25519) instead of secp256k1:
 
 ```toml
-ecies = {version = "0.2", features = ["x25519"]}
+ecies = {version = "0.2", features = ["x25519"]} # recommended
+ecies = {version = "0.2", features = ["ed25519"]} # or if you know what you are doing
 ```
 
 ## Optional pure Rust AES backend

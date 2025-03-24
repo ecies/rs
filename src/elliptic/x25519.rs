@@ -24,21 +24,21 @@ impl core::fmt::Display for Error {
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let sk = SecretKey::random_from_rng(&mut OsRng);
+    let sk = SecretKey::random_from_rng(OsRng);
     let pk = PublicKey::from(&sk);
     (sk, pk)
 }
 
 /// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
 pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<SharedSecret, Error> {
-    let shared_point = sk.diffie_hellman(&peer_pk);
+    let shared_point = sk.diffie_hellman(peer_pk);
     let sender_point = PublicKey::from(sk);
     Ok(hkdf_derive(sender_point.as_bytes(), shared_point.as_bytes()))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<SharedSecret, Error> {
-    let shared_point = peer_sk.diffie_hellman(&pk);
+    let shared_point = peer_sk.diffie_hellman(pk);
     Ok(hkdf_derive(pk.as_bytes(), shared_point.as_bytes()))
 }
 
@@ -66,7 +66,7 @@ mod random_tests {
     use super::generate_keypair;
     use crate::{decrypt, encrypt};
 
-    const MSG: &str = "helloworld🌍";
+    const MSG: &str = "hello world🌍";
     const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
     const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
@@ -148,7 +148,17 @@ mod error_tests {
     use super::{generate_keypair, Error};
     use crate::{consts::ZERO_SECRET, decrypt, encrypt};
 
-    const MSG: &str = "helloworld🌍";
+    #[cfg(not(feature = "std"))]
+    use alloc::format;
+    #[cfg(feature = "std")]
+    use std::format;
+
+    const MSG: &str = "hello world🌍";
+
+    #[test]
+    fn test_error_fmt() {
+        assert_eq!(format!("{}", Error::InvalidMessage), "Invalid message");
+    }
 
     #[test]
     pub fn attempts_to_decrypt_with_invalid_key() {
