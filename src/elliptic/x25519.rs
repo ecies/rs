@@ -1,8 +1,9 @@
 use rand_core::OsRng;
+
 pub use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
 
 use crate::compat::Vec;
-use crate::consts::SharedSecret;
+use crate::consts::{SharedSecret, ZERO_SECRET};
 use crate::symmetric::hkdf_derive;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -32,25 +33,25 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<SharedSecret, Error> {
     let shared_point = sk.diffie_hellman(&peer_pk);
     let sender_point = PublicKey::from(sk);
-    Ok(get_shared_secret(sender_point.as_bytes(), shared_point.as_bytes()))
+    Ok(hkdf_derive(sender_point.as_bytes(), shared_point.as_bytes()))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<SharedSecret, Error> {
     let shared_point = peer_sk.diffie_hellman(&pk);
-    Ok(get_shared_secret(pk.as_bytes(), shared_point.as_bytes()))
+    Ok(hkdf_derive(pk.as_bytes(), shared_point.as_bytes()))
 }
 
 /// Parse secret key bytes
 pub fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
-    let mut data = [0u8; 32];
+    let mut data = ZERO_SECRET;
     data.copy_from_slice(sk);
     Ok(SecretKey::from(data))
 }
 
 /// Parse public key bytes
 pub fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
-    let mut data = [0u8; 32];
+    let mut data = ZERO_SECRET;
     data.copy_from_slice(pk);
     Ok(PublicKey::from(data))
 }
@@ -58,10 +59,6 @@ pub fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
 /// Public key to bytes
 pub fn pk_to_vec(pk: &PublicKey, _compressed: bool) -> Vec<u8> {
     pk.as_bytes().to_vec()
-}
-
-fn get_shared_secret(sender_point: &[u8], shared_point: &[u8]) -> SharedSecret {
-    hkdf_derive(sender_point, shared_point)
 }
 
 #[cfg(test)]
@@ -81,6 +78,15 @@ mod random_tests {
     }
 
     #[test]
+    pub fn test_keypair() {
+        let (sk1, pk1) = generate_keypair();
+        let (sk2, pk2) = generate_keypair();
+
+        assert_ne!(sk1.to_bytes(), sk2.to_bytes());
+        assert_ne!(pk1.to_bytes(), pk2.to_bytes());
+    }
+
+    #[test]
     pub fn test_random() {
         let (sk, pk) = generate_keypair();
         let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
@@ -91,6 +97,8 @@ mod random_tests {
 #[cfg(test)]
 mod known_tests {
     use super::{parse_pk, parse_sk};
+
+    use crate::decrypt;
     use crate::utils::tests::decode_hex;
 
     fn test_known(sk: &str, pk: &str, shared: &str) {
@@ -113,10 +121,24 @@ mod known_tests {
     #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
     #[test]
     pub fn test_known_encrypted() {
-        use crate::decrypt;
-
         let sk = decode_hex("9434b8fc5036bf967b8483a1bf7378f094d90e01393e4e880db0080022ce6330");
         let encrypted = decode_hex("02c351532928d20b9be0c354e029fd387e032d5318d71ca0ea361b8c62bae86794f6208f17b01affe66ab9edc728a25fac317b41dee123c3aee8684e9c771cfbc2c94c0fe0945ea7cad55b3eb11712");
+        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
+    }
+
+    #[cfg(all(not(feature = "xchacha20"), feature = "aes-12bytes-nonce"))]
+    #[test]
+    pub fn test_known_encrypted_short_nonce() {
+        let sk = decode_hex("abba7856619f7923038f03e7365bb166334075cc6b2d57a5c801776a8b506a52");
+        let encrypted = decode_hex("0a16e5b8df916e845aca761353a4776f61785601768e21ca2b359c893d8a304b3cda271597715650d17f43b37379cd587d5466579e3a59da051b5ed49739a91c996cb34c65c8b7ae68fdf3");
+        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
+    }
+
+    #[cfg(feature = "xchacha20")]
+    #[test]
+    pub fn test_known_encrypted_xchacha20() {
+        let sk = decode_hex("6e180c5ae2528fd4799111629b397b2faa48d8074f37cc686aa4139c74103049");
+        let encrypted = decode_hex("6093c37db0385e92860f1213a6e3c75f82b529fad9ddcfdfbcf997dcdf5d8166e275a5ff509362bb50fbbe4f9ef1617ae10c6a7e93f1ef7e5bed7da681278126cd8114f41843d7797007509565b4aca0a3dd473f48265b");
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 }
@@ -124,13 +146,13 @@ mod known_tests {
 #[cfg(test)]
 mod error_tests {
     use super::{generate_keypair, Error};
-    use crate::{decrypt, encrypt};
+    use crate::{consts::ZERO_SECRET, decrypt, encrypt};
 
     const MSG: &str = "helloworld🌍";
 
     #[test]
     pub fn attempts_to_decrypt_with_invalid_key() {
-        assert_eq!(decrypt(&[0u8; 32], &[]), Err(Error::InvalidMessage));
+        assert_eq!(decrypt(&ZERO_SECRET, &[]), Err(Error::InvalidMessage));
     }
 
     #[test]
@@ -138,7 +160,7 @@ mod error_tests {
         let (sk, _) = generate_keypair();
 
         assert_eq!(decrypt(sk.as_bytes(), &[]), Err(Error::InvalidMessage));
-        assert_eq!(decrypt(sk.as_bytes(), &[0u8; 32]), Err(Error::InvalidMessage));
+        assert_eq!(decrypt(sk.as_bytes(), &ZERO_SECRET), Err(Error::InvalidMessage));
     }
 
     #[test]
@@ -157,6 +179,7 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_random() {
+        super::random_tests::test_keypair();
         super::random_tests::test_random();
     }
 
@@ -165,6 +188,10 @@ mod wasm_tests {
         super::known_tests::test_known_shared_point();
         #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
         super::known_tests::test_known_encrypted();
+        #[cfg(all(not(feature = "xchacha20"), feature = "aes-12bytes-nonce"))]
+        super::known_tests::test_known_encrypted_short_nonce();
+        #[cfg(feature = "xchacha20")]
+        super::known_tests::test_known_encrypted_xchacha20();
     }
 
     #[wasm_bindgen_test]
