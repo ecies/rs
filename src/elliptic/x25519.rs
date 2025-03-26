@@ -110,7 +110,7 @@ mod known_tests {
         )
     }
 
-    #[cfg(not(feature = "xchacha20"))]
+    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
     #[test]
     pub fn test_known_encrypted() {
         use crate::decrypt;
@@ -163,7 +163,7 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn test_known() {
         super::known_tests::test_known_shared_point();
-        #[cfg(not(feature = "xchacha20"))]
+        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
         super::known_tests::test_known_encrypted();
     }
 

@@ -60,7 +60,7 @@ once_cell = { version = "1.21.1", default-features = false, features = ["std"] }
 wasm-bindgen = { version = "0.2.100", default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
-# for wasm32-wasi
+# for wasm32-wasip2
 once_cell = { version = "1.21.1", default-features = false, features = ["std"] }
 
 [features]

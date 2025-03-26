@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 # OpenSSL AES
 cargo test --no-default-features --features $CURVE,openssl
