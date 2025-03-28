@@ -2,19 +2,19 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 use crate::compat::Vec;
-use crate::consts::{SharedSecret, EMPTY_BYTES};
+use crate::consts::{SharedSecret, EMPTY_BYTES, ZERO_SECRET};
 
-pub fn hkdf_derive(sender_point: &[u8], shared_point: &[u8]) -> SharedSecret {
-    let size = sender_point.len() + shared_point.len();
+pub fn hkdf_derive(part1: &[u8], part2: &[u8]) -> SharedSecret {
+    let size = part1.len() + part2.len();
     let mut master = Vec::with_capacity(size);
-    master.extend(sender_point);
-    master.extend(shared_point);
+    master.extend(part1);
+    master.extend(part2);
     hkdf_sha256(&master)
 }
 
 fn hkdf_sha256(master: &[u8]) -> SharedSecret {
     let h = Hkdf::<Sha256>::new(None, master);
-    let mut out = [0u8; 32];
+    let mut out = ZERO_SECRET;
     // never fails because 32 < 255 * chunk_len, which is 32 on SHA256
     h.expand(&EMPTY_BYTES, &mut out).unwrap();
     out

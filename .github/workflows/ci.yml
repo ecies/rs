@@ -54,20 +54,8 @@ jobs:
       - name: Check doc
         run: cargo doc --no-deps
 
-      - run: sh ./scripts/test.sh
-        env:
-          CURVE: secp256k1
-      - run: sh ./scripts/test.sh
-        env:
-          CURVE: x25519
-
       - run: cargo install wasm-bindgen-cli || true
-      - run: sh ./scripts/test-wasm.sh
-        env:
-          CURVE: secp256k1
-      - run: sh ./scripts/test-wasm.sh
-        env:
-          CURVE: x25519
+      - run: sh ./scripts/test-all.sh
 
       # Coverage
       - run: cargo llvm-cov --no-default-features --features pure --lcov --output-path .lcov.info

@@ -28,3 +28,5 @@ pub const EMPTY_BYTES: [u8; 0] = [];
 
 /// Shared secret derived from key exchange by hkdf
 pub type SharedSecret = [u8; 32];
+
+pub(crate) const ZERO_SECRET: [u8; 32] = [0u8; 32];

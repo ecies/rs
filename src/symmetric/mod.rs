@@ -36,7 +36,10 @@ pub fn sym_decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{consts::NONCE_TAG_LENGTH, utils::tests::decode_hex};
+    use crate::{
+        consts::{NONCE_TAG_LENGTH, ZERO_SECRET},
+        utils::tests::decode_hex,
+    };
 
     #[test]
     pub(super) fn attempts_to_decrypt_invalid_message() {
@@ -47,7 +50,7 @@ mod tests {
 
     #[test]
     pub(super) fn test_random_key() {
-        let mut key = [0u8; 32];
+        let mut key = ZERO_SECRET;
 
         let texts = [b"this is a text", "😀😀😀😀".as_bytes()];
         for msg in texts.iter() {

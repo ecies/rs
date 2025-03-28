@@ -16,6 +16,7 @@
     "diffie",
     "docsrs",
     "ecies",
+    "eciesjs",
     "eciespy",
     "eciesrs",
     "getrandom",
@@ -32,7 +33,8 @@
     "struct",
     "symm",
     "typenum",
-    "xchacha"
+    "xchacha",
+    "wasip2"
   ],
   // flagWords - list of words to be always considered incorrect
   // This is useful for offensive words and common spelling errors.
