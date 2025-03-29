@@ -6,6 +6,7 @@
   // words - list of words to be always considered correct
   "words": [
     "armv",
+    "BASEPOINT",
     "bindgen",
     "chacha",
     "Codacy",
@@ -24,6 +25,7 @@
     "HKDF",
     "keypair",
     "libsecp",
+    "msrv",
     "reqwest",
     "RUSTFLAGS",
     "sandybridge",
@@ -33,8 +35,8 @@
     "struct",
     "symm",
     "typenum",
-    "xchacha",
-    "wasip2"
+    "wasip2",
+    "xchacha"
   ],
   // flagWords - list of words to be always considered incorrect
   // This is useful for offensive words and common spelling errors.

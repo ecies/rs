@@ -1,7 +1,7 @@
 #[test]
 #[cfg(all(
     not(target_arch = "wasm32"),
-    not(feature = "x25519"),
+    all(not(feature = "x25519"), not(feature = "ed25519")),
     not(feature = "aes-12bytes-nonce"),
     not(feature = "xchacha20"),
 ))]
@@ -12,7 +12,7 @@ fn is_compatible_with_python() {
 
     use ecies::{decrypt, encrypt, utils::generate_keypair};
 
-    const MSG: &str = "helloworld🌍";
+    const MSG: &str = "hello world🌍";
     const PYTHON_BACKEND: &str = "https://demo.ecies.org/";
 
     let (sk, pk) = generate_keypair();

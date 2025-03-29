@@ -35,7 +35,7 @@ pub fn is_hkdf_key_compressed() -> bool {
 }
 
 /// Get ephemeral key size: compressed(33) or uncompressed(65) on secp256k1 or 32 on x25519
-#[cfg(not(feature = "x25519"))]
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 pub fn get_ephemeral_key_size() -> usize {
     use crate::consts::{COMPRESSED_PUBLIC_KEY_SIZE, UNCOMPRESSED_PUBLIC_KEY_SIZE};
 
@@ -46,7 +46,7 @@ pub fn get_ephemeral_key_size() -> usize {
     }
 }
 
-#[cfg(feature = "x25519")]
+#[cfg(any(feature = "x25519", feature = "ed25519"))]
 pub fn get_ephemeral_key_size() -> usize {
     use crate::consts::PUBLIC_KEY_SIZE;
 

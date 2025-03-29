@@ -1,12 +1,12 @@
 /// Compressed public key size
-#[cfg(not(feature = "x25519"))]
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 pub const COMPRESSED_PUBLIC_KEY_SIZE: usize = 33;
 
 /// Uncompressed public key size
-#[cfg(not(feature = "x25519"))]
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 pub const UNCOMPRESSED_PUBLIC_KEY_SIZE: usize = 65;
 
-#[cfg(feature = "x25519")]
+#[cfg(any(feature = "x25519", feature = "ed25519"))]
 pub const PUBLIC_KEY_SIZE: usize = 32;
 
 /// Nonce length. AES (12/16 bytes) or XChaCha20 (24 bytes)

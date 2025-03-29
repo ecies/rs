@@ -36,29 +36,33 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # install openssl on Windows
-      - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Install OpenSSL on Windows
+        run: |
+          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          New-Item -ItemType "directory" -Path "C:\vcpkg\downloads" -Force
+          Invoke-WebRequest -URI "$env:BASE_URL/$env:FILE_NAME" -OutFile "C:\vcpkg\downloads\$env:FILE_NAME"
+          vcpkg install openssl:x64-windows-static-md
         if: matrix.os == 'windows-latest'
-      - run: New-Item -ItemType "directory" -Path "C:\vcpkg\downloads" -Force
-        if: matrix.os == 'windows-latest'
-      - run: Invoke-WebRequest -URI "$env:BASE_URL/$env:FILE_NAME" -OutFile "C:\vcpkg\downloads\$env:FILE_NAME"
         env:
           BASE_URL: https://github.com/microsoft/vcpkg/files/12073957
           FILE_NAME: nasm-2.16.01-win64.zip
-        if: matrix.os == 'windows-latest'
-      - run: vcpkg install openssl:x64-windows-static-md
-        if: matrix.os == 'windows-latest'
 
+      - name: Format
+        run: cargo fmt
       - name: Check and run lint
-        run: cargo check && cargo fmt && cargo clippy
+        run: sh ./scripts/check-all.sh
       - name: Check doc
         run: cargo doc --no-deps
 
       - run: cargo install wasm-bindgen-cli || true
-      - run: sh ./scripts/test-all.sh
 
-      # Coverage
-      - run: cargo llvm-cov --no-default-features --features pure --lcov --output-path .lcov.info
+      - name: Test
+        run: sh ./scripts/test-all.sh
+
+      - name: Coverage
+        run: sh ./scripts/cov-all.sh
+        if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
+
       - uses: codecov/codecov-action@v5
         if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
         with:
@@ -67,15 +71,23 @@ jobs:
 
       - name: Check cargo package
         run: cargo publish --dry-run
-        if: matrix.os != 'windows-latest'
+        if: matrix.os == 'ubuntu-latest'
 
   check-msrv:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.73.0 # msrv
+          toolchain: 1.65.0 # msrv
+
       - run: cargo generate-lockfile
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build
+      - run: cargo build --no-default-features --features openssl
+        if: matrix.os != 'windows-latest'
+      - run: cargo build --no-default-features --features pure
+      - run: cargo build --no-default-features --features pure,x25519
+      - run: cargo build --no-default-features --features pure,ed25519

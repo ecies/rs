@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.9
+
+- Add ed25519 support
+
 ## 0.2.8
 
 - Bump dependencies

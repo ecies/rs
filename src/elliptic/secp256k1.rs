@@ -140,7 +140,7 @@ mod random_tests {
     use super::generate_keypair;
     use crate::{decrypt, encrypt};
 
-    const MSG: &str = "helloworld🌍";
+    const MSG: &str = "hello world🌍";
     const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
     const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
@@ -180,7 +180,7 @@ mod error_tests {
     use super::{generate_keypair, Error};
     use crate::{decrypt, encrypt};
 
-    const MSG: &str = "helloworld🌍";
+    const MSG: &str = "hello world🌍";
 
     #[test]
     pub fn attempts_to_encrypt_with_invalid_key() {
