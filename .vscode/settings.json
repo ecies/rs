@@ -1,7 +1,6 @@
 {
   "rust-analyzer.cargo.features": [
-    "pure",
-    "ed25519"
+    "aes-rust"
   ],
   "rust-analyzer.cargo.noDefaultFeatures": true,
   "rust-analyzer.procMacro.enable": true,

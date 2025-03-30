@@ -55,7 +55,7 @@ rand_core = { version = "0.6.4", default-features = false, features = [
 ] }
 
 # configuration
-once_cell = { version = "1.21.2", default-features = false, features = [
+once_cell = { version = "1.21.3", default-features = false, features = [
   "critical-section",
 ] }
 parking_lot = "0.12.3"
@@ -63,15 +63,15 @@ parking_lot = "0.12.3"
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
 getrandom = { version = "0.2.15", default-features = false, features = ["js"] }
-once_cell = { version = "1.21.2", default-features = false, features = ["std"] }
+once_cell = { version = "1.21.3", default-features = false, features = ["std"] }
 wasm-bindgen = { version = "0.2.100", default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
 # for wasm32-wasip2
-once_cell = { version = "1.21.2", default-features = false, features = ["std"] }
+once_cell = { version = "1.21.3", default-features = false, features = ["std"] }
 
 [features]
-default = ["openssl"]
+default = ["aes-openssl"]
 std = ["hkdf/std", "sha2/std", "once_cell/std"]
 
 # curves
@@ -81,18 +81,18 @@ x25519 = ["dep:curve25519-dalek", "dep:x25519-dalek"]
 ed25519 = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
 
 # aes
-aes-gcm-openssl = ["dep:openssl"]
-aes-gcm-rust = ["aes-gcm", "typenum"] # TODO: dep syntax
+aes-openssl = ["dep:openssl"]
+aes-rust = ["dep:aes-gcm", "dep:typenum"]
 # 12 bytes nonce, default: 16 bytes
-aes-gcm-short-nonce = []
+aes-short-nonce = []
 
 # deprecated aes features, TODO: remove
-openssl = ["aes-gcm-openssl"]
-pure = ["aes-gcm-rust"]
-aes-12bytes-nonce = ["aes-gcm-short-nonce"]
+openssl = ["aes-openssl"]
+pure = ["aes-rust"]
+aes-12bytes-nonce = ["aes-short-nonce"]
 
 # xchacha20
-xchacha20 = ["chacha20poly1305"] # TODO: dep syntax
+xchacha20 = ["dep:chacha20poly1305"]
 
 [dev-dependencies]
 criterion = { version = "0.5.1", default-features = false }

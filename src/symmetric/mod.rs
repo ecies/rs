@@ -3,14 +3,14 @@ use rand_core::{OsRng, RngCore};
 use crate::compat::Vec;
 use crate::consts::NONCE_LENGTH;
 
-#[cfg(any(feature = "pure", feature = "xchacha20"))]
+#[cfg(any(feature = "aes-rust", feature = "xchacha20"))]
 mod aead;
-#[cfg(any(feature = "pure", feature = "xchacha20"))]
+#[cfg(any(feature = "aes-rust", feature = "xchacha20"))]
 use aead::{decrypt, encrypt};
 
-#[cfg(feature = "openssl")]
+#[cfg(feature = "aes-openssl")]
 mod openssl_aes;
-#[cfg(feature = "openssl")]
+#[cfg(feature = "aes-openssl")]
 use openssl_aes::{decrypt, encrypt};
 
 mod hash;
@@ -61,7 +61,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(feature = "aes-12bytes-nonce"), not(feature = "xchacha20")))]
+    #[cfg(all(not(feature = "aes-short-nonce"), not(feature = "xchacha20")))]
     pub(super) fn test_aes_known_key() {
         let text = b"helloworld";
         let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
@@ -73,7 +73,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "aes-12bytes-nonce", not(feature = "xchacha20")))]
+    #[cfg(all(feature = "aes-short-nonce", not(feature = "xchacha20")))]
     pub(super) fn test_aes_known_key() {
         let text = b"";
         let key = decode_hex("0000000000000000000000000000000000000000000000000000000000000000");
@@ -113,7 +113,7 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn test_wasm() {
         super::tests::test_random_key();
-        #[cfg(all(not(feature = "aes-12bytes-nonce"), not(feature = "xchacha20")))]
+        #[cfg(all(not(feature = "aes-short-nonce"), not(feature = "xchacha20")))]
         super::tests::test_aes_known_key();
         #[cfg(feature = "xchacha20")]
         super::tests::test_xchacha20_known_key();

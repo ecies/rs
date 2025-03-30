@@ -86,8 +86,9 @@ jobs:
 
       - run: cargo generate-lockfile
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --no-default-features --features openssl
+
+      - run: cargo build --no-default-features --features aes-openssl
         if: matrix.os != 'windows-latest'
-      - run: cargo build --no-default-features --features pure
-      - run: cargo build --no-default-features --features pure,x25519
-      - run: cargo build --no-default-features --features pure,ed25519
+      - run: cargo build --no-default-features --features aes-rust
+      - run: cargo build --no-default-features --features aes-rust,x25519
+      - run: cargo build --no-default-features --features aes-rust,ed25519

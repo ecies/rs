@@ -1,6 +1,6 @@
-#[cfg(all(feature = "pure", not(feature = "xchacha20")))]
+#[cfg(all(feature = "aes-rust", not(feature = "xchacha20")))]
 use aes_gcm::{self as cipher, aes::Aes256, AesGcm};
-#[cfg(all(feature = "xchacha20", not(feature = "pure")))]
+#[cfg(all(feature = "xchacha20", not(feature = "aes-rust")))]
 use chacha20poly1305::{self as cipher, XChaCha20Poly1305};
 
 use cipher::{
@@ -8,9 +8,9 @@ use cipher::{
     KeyInit,
 };
 
-#[cfg(all(feature = "pure", feature = "aes-12bytes-nonce"))]
+#[cfg(all(feature = "aes-rust", feature = "aes-short-nonce"))]
 type Cipher = AesGcm<Aes256, typenum::consts::U12>;
-#[cfg(all(feature = "pure", not(feature = "aes-12bytes-nonce")))]
+#[cfg(all(feature = "aes-rust", not(feature = "aes-short-nonce")))]
 type Cipher = AesGcm<Aes256, typenum::consts::U16>;
 #[cfg(feature = "xchacha20")]
 type Cipher = XChaCha20Poly1305;
