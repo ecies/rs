@@ -15,4 +15,11 @@ pub mod tests {
         };
         decode(hex).unwrap()
     }
+
+    #[test]
+    fn test_decode_hex() {
+        assert_eq!(decode_hex("0x1234").as_slice(), &[0x12, 0x34]);
+        assert_eq!(decode_hex("0X1234").as_slice(), &[0x12, 0x34]);
+        assert_eq!(decode_hex("1234").as_slice(), &[0x12, 0x34]);
+    }
 }

@@ -3,6 +3,7 @@
 ## 0.2.9
 
 - Add ed25519 support
+- Add renamed features: `aes-openssl`, `aes-rust`, `aes-short-nonce`. The old features (`openssl`, `pure`, `aes-12bytes-nonce`) are still supported, but will be removed in the future
 
 ## 0.2.8
 

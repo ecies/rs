@@ -2,7 +2,7 @@
 #[cfg(all(
     not(target_arch = "wasm32"),
     all(not(feature = "x25519"), not(feature = "ed25519")),
-    not(feature = "aes-12bytes-nonce"),
+    not(feature = "aes-short-nonce"),
     not(feature = "xchacha20"),
 ))]
 fn is_compatible_with_python() {

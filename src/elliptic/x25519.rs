@@ -118,7 +118,7 @@ mod known_tests {
         )
     }
 
-    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
+    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
     #[test]
     pub fn test_known_encrypted() {
         let sk = decode_hex("9434b8fc5036bf967b8483a1bf7378f094d90e01393e4e880db0080022ce6330");
@@ -126,7 +126,7 @@ mod known_tests {
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
-    #[cfg(all(not(feature = "xchacha20"), feature = "aes-12bytes-nonce"))]
+    #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
     #[test]
     pub fn test_known_encrypted_short_nonce() {
         let sk = decode_hex("abba7856619f7923038f03e7365bb166334075cc6b2d57a5c801776a8b506a52");
@@ -196,9 +196,9 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn test_known() {
         super::known_tests::test_known_shared_point();
-        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-12bytes-nonce")))]
+        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
         super::known_tests::test_known_encrypted();
-        #[cfg(all(not(feature = "xchacha20"), feature = "aes-12bytes-nonce"))]
+        #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
         super::known_tests::test_known_encrypted_short_nonce();
         #[cfg(feature = "xchacha20")]
         super::known_tests::test_known_encrypted_xchacha20();

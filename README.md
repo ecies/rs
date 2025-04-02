@@ -16,7 +16,7 @@ This is the Rust version of [eciesjs](https://github.com/ecies/js).
 
 This library can be compiled to the WASM target at your option, see [WASM compatibility](#wasm-compatibility).
 
-## Quick Start
+## Quick start
 
 `no_std` is enabled by default. You can enable `std` with `std` feature.
 
@@ -43,7 +43,9 @@ assert_eq!(
 );
 ```
 
-## Optional x25519/ed25519 Support
+## Elliptic curve configuration
+
+### Optional x25519/ed25519 support
 
 You can choose to use x25519 (key exchange function on curve25519) or ed25519 (signature algorithm on curve25519) instead of secp256k1:
 
@@ -52,57 +54,9 @@ ecies = {version = "0.2", features = ["x25519"]} # recommended
 ecies = {version = "0.2", features = ["ed25519"]} # or if you know what you are doing
 ```
 
-## Optional pure Rust AES backend
-
-You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
-
-```toml
-ecies = {version = "0.2", default-features = false, features = ["pure"]}
-```
-
-Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
-
-Pure Rust implementation is sometimes useful, such as building on WASM:
-
-```bash
-cargo build --no-default-features --features pure --target=wasm32-unknown-unknown
-```
-
-If you select the pure Rust backend on modern x86 CPUs, consider building with
-
-```bash
-RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
-```
-
-It can speed up AES encryption/decryption. This would be no longer necessary when [`aes-gcm` supports automatic CPU detection](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
-
-On ARM CPUs, consider building with
-
-```bash
-RUSTFLAGS="--cfg aes_armv8" # Rust 1.61+
-```
-
-## WASM compatibility
-
-It's also possible to build to the `wasm32-unknown-unknown` target (or `wasm32-wasip2`) with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
-
-## Configuration
-
-You can enable 12 bytes nonce by `aes-12bytes-nonce` feature on OpenSSL or pure Rust AES backend.
-
-```toml
-ecies = {version = "0.2", features = ["aes-12bytes-nonce"]} # it also works with "pure"
-```
-
-You can also enable a pure Rust [XChaCha20-Poly1305](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305) backend.
-
-```toml
-ecies = {version = "0.2", default-features = false, features = ["xchacha20"]}
-```
-
 ### Secp256k1-specific configuration
 
-Other behaviors can be configured by global static variable:
+Some behaviors can be configured by global static variable:
 
 ```rust
 pub struct Config {
@@ -126,6 +80,60 @@ update_config(Config {
 
 For compatibility, make sure different applications share the same configuration. Normally configuration is only updated once on initialization, if not, beware of race condition.
 
+## Symmetric cipher configuration
+
+### Optional pure Rust AES backend
+
+You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
+
+```toml
+ecies = {version = "0.2", default-features = false, features = ["aes-rust"]}
+```
+
+Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
+
+Pure Rust implementation is sometimes useful, such as building on WASM:
+
+```bash
+cargo build --no-default-features --features aes-rust --target=wasm32-unknown-unknown
+```
+
+#### Build on x86 CPUs
+
+If you select the pure Rust backend on modern x86 CPUs, consider building with
+
+```bash
+RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
+```
+
+It can speed up AES encryption/decryption. This would be no longer necessary when [`aes-gcm` supports automatic CPU detection](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
+
+#### Build on ARM CPUs
+
+On ARM CPUs (like Apple), consider building with
+
+```bash
+RUSTFLAGS="--cfg aes_armv8"
+```
+
+### Optional pure Rust XChaCha20-Poly1305 backend
+
+You can also enable a pure Rust [XChaCha20-Poly1305](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305) backend.
+
+```toml
+ecies = {version = "0.2", default-features = false, features = ["xchacha20"]}
+```
+
+On ARM CPUs, enable SIMD with
+
+```bash
+RUSTFLAGS="--cfg chacha20_force_neon"
+```
+
+## WASM compatibility
+
+It's also possible to build to the `wasm32-unknown-unknown` target (or `wasm32-wasip2`) with the pure Rust backend. Check out [this repo](https://github.com/ecies/rs-wasm) for more details.
+
 ## Security
 
 ### Why AES-256-GCM and HKDF-SHA256
@@ -136,7 +144,7 @@ For key derivation functions on shared points between two asymmetric keys, HKDFs
 
 ### Why XChaCha20-Poly1305 instead of AES-256-GCM
 
-XChaCha20-Poly1305 is a competitive alternative to AES-256-GCM because it's fast and constant-time without hardware acceleration (resistant to cache-timing attacks). It also has longer nonce length to alleviate the risk of birthday attacks when nonces are generated randomly.
+XChaCha20-Poly1305 is a competitive alternative to AES-256-GCM because it's fast and constant-time without dedicated hardware acceleration (resistant to cache-timing attacks). It also has longer nonce length to alleviate the risk of birthday attacks when nonces are generated randomly.
 
 ### Cross-language compatibility
 
@@ -151,23 +159,27 @@ Following dependencies are audited:
 
 ## Benchmark
 
-On MacBook Pro Mid 2015 (15-inch, 2.8 GHz Quad-Core Intel Core i7) on July 19, 2023.
+On Mac mini M4 Pro (24 GB) on Apr 2, 2025, secp256k1 only.
+
+Rust version: 1.85.0 (4d91de4e4 2025-02-17)
 
 ### AES backend (OpenSSL)
 
 ```bash
-$ cargo bench --no-default-features --features openssl
-encrypt 100M            time:   [100.21 ms 100.79 ms 101.80 ms]
+$ cargo bench --no-default-features --features aes-openssl
 
-encrypt 200M            time:   [377.84 ms 384.42 ms 390.58 ms]
+encrypt 100M            time:   [29.237 ms 29.827 ms 30.628 ms]
 Found 2 outliers among 10 measurements (20.00%)
-  2 (20.00%) high mild
+  1 (10.00%) low mild
+  1 (10.00%) high mild
 
-decrypt 100M            time:   [52.430 ms 55.605 ms 60.900 ms]
+encrypt 200M            time:   [86.005 ms 88.055 ms 89.282 ms]
+
+decrypt 100M            time:   [17.222 ms 17.568 ms 17.977 ms]
 Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high severe
+  1 (10.00%) high mild
 
-decrypt 200M            time:   [157.87 ms 158.98 ms 160.01 ms]
+decrypt 200M            time:   [38.884 ms 39.324 ms 39.693 ms]
 Found 1 outliers among 10 measurements (10.00%)
   1 (10.00%) high mild
 ```
@@ -175,42 +187,33 @@ Found 1 outliers among 10 measurements (10.00%)
 ### AES backend (Pure Rust)
 
 ```bash
-$ export RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
-$ cargo bench --no-default-features --features pure
-encrypt 100M            time:   [196.63 ms 205.63 ms 222.25 ms]
+$ export RUSTFLAGS="--cfg aes_armv8"
+$ cargo bench --no-default-features --features aes-rust
+
+encrypt 100M            time:   [120.40 ms 122.63 ms 127.09 ms]
 Found 1 outliers among 10 measurements (10.00%)
   1 (10.00%) high severe
 
-Benchmarking encrypt 200M: Warming up for 3.0000 s
-encrypt 200M            time:   [587.78 ms 590.71 ms 592.46 ms]
-Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high mild
+encrypt 200M            time:   [253.86 ms 256.43 ms 258.01 ms]
 
-decrypt 100M            time:   [144.78 ms 145.54 ms 147.17 ms]
-Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high mild
+decrypt 100M            time:   [113.73 ms 114.05 ms 114.39 ms]
 
-decrypt 200M            time:   [363.14 ms 364.48 ms 365.74 ms]
+decrypt 200M            time:   [236.41 ms 237.82 ms 239.12 ms]
 ```
 
 ### XChaCha20 backend
 
 ```bash
+$ export RUSTFLAGS="--cfg chacha20_force_neon"
 $ cargo bench --no-default-features --features xchacha20
-encrypt 100M            time:   [149.52 ms 150.06 ms 150.59 ms]
-Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high mild
 
-encrypt 200M            time:   [482.27 ms 484.95 ms 487.45 ms]
-Found 3 outliers among 10 measurements (30.00%)
-  2 (20.00%) low severe
-  1 (10.00%) high severe
+encrypt 100M            time:   [120.24 ms 120.98 ms 121.63 ms]
 
-decrypt 100M            time:   [98.232 ms 100.37 ms 105.65 ms]
-Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high severe
+encrypt 200M            time:   [257.24 ms 261.22 ms 264.06 ms]
 
-decrypt 200M            time:   [265.62 ms 268.02 ms 269.85 ms]
+decrypt 100M            time:   [114.39 ms 114.94 ms 116.03 ms]
+
+decrypt 200M            time:   [238.09 ms 240.60 ms 242.55 ms]
 ```
 
 ## Changelog
