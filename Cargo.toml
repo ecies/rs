@@ -72,7 +72,8 @@ wasm-bindgen = { version = "0.2.100", default-features = false }
 once_cell = { version = "1.21.3", default-features = false, features = ["std"] }
 
 [features]
-default = ["aes-openssl", "dep:spin"]
+default = ["aes-openssl", "spin"]
+spin = ["dep:spin"]
 std = ["hkdf/std", "sha2/std", "once_cell/std", "dep:parking_lot"]
 
 # curves
