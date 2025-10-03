@@ -142,7 +142,7 @@ mod random_tests {
 
     const MSG: &str = "hello world🌍";
     const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
-    const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
+    static BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
     fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
