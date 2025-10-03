@@ -1,5 +1,9 @@
 use once_cell::sync::Lazy;
+#[cfg(feature = "std")]
 use parking_lot::RwLock;
+
+#[cfg(not(feature = "std"))]
+use spin::RwLock;
 
 /// ECIES config. Make sure all parties use the same config
 #[derive(Default)]
