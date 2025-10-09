@@ -81,8 +81,6 @@ unsafe impl RawRwLock for RawSpinRwLock {
 ///
 /// This allows multiple concurrent readers or a single writer.
 pub(crate) type RwLock<T> = lock_api::RwLock<RawSpinRwLock, T>;
-// pub(crate) type RwLockReadGuard<'a, T> = lock_api::RwLockReadGuard<'a, RawSpinRwLock, T>;
-// pub(crate) type RwLockWriteGuard<'a, T> = lock_api::RwLockWriteGuard<'a, RawSpinRwLock, T>;
 
 #[cfg(test)]
 mod tests {
