@@ -58,8 +58,8 @@ rand_core = { version = "0.6.4", default-features = false, features = [
 once_cell = { version = "1.21.3", default-features = false, features = [
   "critical-section",
 ] }
-lock_api = "0.4.14"
-parking_lot = { version = "0.12.3", optional = true }
+lock_api = "=0.4.13" # msrv 1.64
+parking_lot = { version = "=0.12.4", optional = true } # msrv 1.64
 
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
@@ -103,11 +103,11 @@ criterion = { version = "0.7.0", default-features = false }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.50"
+wasm-bindgen-test = "0.3.54"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 futures-util = "0.3.31"
-reqwest = "0.12.15"
+reqwest = "0.12.23"
 tokio = { version = "1.44.1", default-features = false, features = [
   "rt-multi-thread",
 ] }
