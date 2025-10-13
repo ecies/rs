@@ -37,14 +37,14 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 }
 
 /// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<SharedSecret, Error> {
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, _compressed: bool) -> Result<SharedSecret, Error> {
     let sender_point = to_public_key(sk).to_bytes();
     let shared_point = multiply(sk, peer_pk)?;
     Ok(hkdf_derive(&sender_point, shared_point.compress().as_bytes()))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<SharedSecret, Error> {
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, _compressed: bool) -> Result<SharedSecret, Error> {
     let shared_point = multiply(peer_sk, pk)?;
     Ok(hkdf_derive(pk, shared_point.compress().as_bytes()))
 }

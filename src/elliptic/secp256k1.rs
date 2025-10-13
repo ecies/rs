@@ -3,7 +3,6 @@ use rand_core::OsRng;
 pub use libsecp256k1::{Error, PublicKey, SecretKey};
 
 use crate::compat::Vec;
-use crate::config::is_hkdf_key_compressed;
 use crate::consts::SharedSecret;
 use crate::symmetric::hkdf_derive;
 
@@ -15,20 +14,18 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 }
 
 /// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey) -> Result<SharedSecret, Error> {
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, compressed: bool) -> Result<SharedSecret, Error> {
     let mut shared_point = *peer_pk;
     shared_point.tweak_mul_assign(sk)?;
     let sender_point = &PublicKey::from_secret_key(sk);
-    // TODO: move compressed: bool to arg
-    Ok(get_shared_secret(sender_point, &shared_point, is_hkdf_key_compressed()))
+    Ok(get_shared_secret(sender_point, &shared_point, compressed))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey) -> Result<SharedSecret, Error> {
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, compressed: bool) -> Result<SharedSecret, Error> {
     let mut shared_point = *pk;
     shared_point.tweak_mul_assign(peer_sk)?;
-    // TODO: move compressed: bool to arg
-    Ok(get_shared_secret(pk, &shared_point, is_hkdf_key_compressed()))
+    Ok(get_shared_secret(pk, &shared_point, compressed))
 }
 
 /// Parse secret key bytes
@@ -105,8 +102,13 @@ mod known_tests {
         let pk3 = PublicKey::from_secret_key(&sk3);
 
         assert_eq!(
-            encapsulate(&sk2, &pk3).unwrap().to_vec(),
+            encapsulate(&sk2, &pk3, false).unwrap().to_vec(),
             decode_hex("6f982d63e8590c9d9b5b4c1959ff80315d772edd8f60287c9361d548d5200f82")
+        );
+
+        assert_eq!(
+            encapsulate(&sk2, &pk3, true).unwrap().to_vec(),
+            decode_hex("b192b226edb3f02da11ef9c6ce4afe1c7e40be304e05ae3b988f4834b1cb6c69")
         );
     }
 
@@ -212,32 +214,28 @@ mod error_tests {
 
 #[cfg(test)]
 mod config_tests {
-    use super::known_tests::get_sk;
-    use super::{encapsulate, generate_keypair, PublicKey};
+    use super::generate_keypair;
 
     use crate::config::{reset_config, update_config, Config};
-    use crate::utils::tests::decode_hex;
-    use crate::{decrypt, encrypt};
+    use crate::{decrypt, encrypt, Error};
 
     const MSG: &str = "helloworld🌍";
 
     #[test]
-    pub fn test_known_hkdf_config() {
-        let sk2 = get_sk(2);
-        let sk3 = get_sk(3);
-        let pk3 = PublicKey::from_secret_key(&sk3);
+    pub fn test_hkdf_key_config() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
 
         update_config(Config {
             is_hkdf_key_compressed: true,
             ..Config::default()
         });
 
-        assert_eq!(
-            encapsulate(&sk2, &pk3).unwrap().to_vec(),
-            decode_hex("b192b226edb3f02da11ef9c6ce4afe1c7e40be304e05ae3b988f4834b1cb6c69")
-        );
+        let encrypted = encrypt(pk, MSG.as_bytes()).unwrap();
+        assert_eq!(MSG.as_bytes(), &decrypt(sk, &encrypted).unwrap());
 
         reset_config();
+        assert_eq!(decrypt(sk, &encrypted).unwrap_err(), Error::InvalidMessage);
     }
 
     #[test]
@@ -277,8 +275,8 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_config() {
+        super::config_tests::test_hkdf_key_config();
         super::config_tests::test_ephemeral_key_config();
-        super::config_tests::test_known_hkdf_config();
     }
 
     #[wasm_bindgen_test]
