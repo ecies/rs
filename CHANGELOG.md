@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.10
+
+- Add homemade rwlock for `no_std`
+- Add `zeroize` feature for x25519/ed25519
+- Add `compressed` argument to encapsulate/decapsulate functions
+  - Note: this might break a little of client code but can be easily fixed
+
 ## 0.2.9
 
 - Add ed25519 support
