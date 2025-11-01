@@ -59,7 +59,7 @@ once_cell = { version = "1.21.3", default-features = false, features = [
   "critical-section",
 ] }
 lock_api = "=0.4.13" # msrv 1.64
-parking_lot = { version = "=0.12.4", optional = true } # msrv 1.64
+parking_lot = { version = "=0.12.5", optional = true } # msrv 1.64
 
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
