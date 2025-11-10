@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.11
+
+- Bump MSRV to 1.71
+
 ## 0.2.10
 
 - Add homemade rwlock for `no_std`
