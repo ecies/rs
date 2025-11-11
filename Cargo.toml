@@ -1,11 +1,11 @@
 [package]
 name = "ecies"
-version = "0.2.10"
+version = "0.2.11"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.71"
 keywords = [ # at most five
   "secp256k1",
   "x25519",
@@ -35,18 +35,18 @@ ed25519-dalek = { version = "~2.1.1", default-features = false, optional = true 
 
 # symmetric ciphers
 # aes (openssl)
-openssl = { version = "0.10.71", default-features = false, optional = true }
+openssl = { version = "0.10.74", default-features = false, optional = true }
 # aes (pure Rust)
 aes-gcm = { version = "0.10.3", default-features = false, features = [
   "aes",
 ], optional = true }
-typenum = { version = "1.18.0", default-features = false, optional = true }
+typenum = { version = "1.19.0", default-features = false, optional = true }
 # xchacha20
 chacha20poly1305 = { version = "0.10.1", default-features = false, optional = true }
 
 # hash
 hkdf = { version = "0.12.4", default-features = false }
-sha2 = { version = "0.10.8", default-features = false }
+sha2 = { version = "0.10.9", default-features = false }
 
 # random number generator
 getrandom = { version = "0.2.16", default-features = false }
@@ -58,14 +58,14 @@ rand_core = { version = "0.6.4", default-features = false, features = [
 once_cell = { version = "1.21.3", default-features = false, features = [
   "critical-section",
 ] }
-lock_api = "=0.4.13" # msrv 1.64
-parking_lot = { version = "=0.12.4", optional = true } # msrv 1.64
+lock_api = "0.4.14"
+parking_lot = { version = "0.12.5", optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
 getrandom = { version = "0.2.16", default-features = false, features = ["js"] }
 once_cell = { version = "1.21.3", default-features = false, features = ["std"] }
-wasm-bindgen = { version = "0.2.104", default-features = false }
+wasm-bindgen = { version = "0.2.105", default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
 # for wasm32-wasip2
@@ -103,12 +103,12 @@ criterion = { version = "0.7.0", default-features = false }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.54"
+wasm-bindgen-test = "0.3.55"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 futures-util = "0.3.31"
-reqwest = "0.12.23"
-tokio = { version = "1.47.1", default-features = false, features = [
+reqwest = "0.12.24"
+tokio = { version = "1.48.0", default-features = false, features = [
   "rt-multi-thread",
 ] }
 

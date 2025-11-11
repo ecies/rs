@@ -21,7 +21,7 @@ This library can be compiled to the WASM target at your option, see [WASM compat
 `no_std` is enabled by default. You can enable `std` with `std` feature.
 
 ```toml
-ecies = {version = "0.2", features = ["std"]} # MSRV is 1.65
+ecies = {version = "0.2", features = ["std"]} # MSRV is 1.71
 ```
 
 ```rust
