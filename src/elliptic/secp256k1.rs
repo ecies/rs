@@ -116,9 +116,12 @@ impl PublicKey {
     }
 
     pub fn tweak_mul_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
+        if tweak.0 == [0u8; 32] {
+            return Err(Error::TweakOutOfRange);
+        }
+
         let point = self.0.to_projective() * tweak.as_inner().to_nonzero_scalar().as_ref();
-        self.0 = K256PublicKey::from_affine(point.to_affine())
-            .expect("non-identity projective points always convert to public keys");
+        self.0 = K256PublicKey::from_affine(point.to_affine()).map_err(|_| Error::InvalidAffine)?;
         Ok(())
     }
 }
@@ -311,6 +314,8 @@ mod random_tests {
 mod error_tests {
     use alloc::format;
 
+    use k256::AffinePoint;
+
     use super::{generate_keypair, parse_pk, Error, PublicKey};
     use crate::{decrypt, encrypt};
 
@@ -379,6 +384,23 @@ mod error_tests {
         let mut raw = [0u8; 65];
         raw[0] = 0x04;
         assert_eq!(PublicKey::parse_slice(&raw, None), Err(Error::InvalidPublicKey));
+    }
+
+    #[test]
+    pub fn attempts_to_multiply_by_zero_tweak() {
+        let (_, pk) = generate_keypair();
+        let zero = super::SecretKey([0u8; 32]);
+
+        let mut shared_point = pk;
+        assert_eq!(shared_point.tweak_mul_assign(&zero), Err(Error::TweakOutOfRange));
+    }
+
+    #[test]
+    pub fn invalid_affine_conversion_maps_to_error() {
+        assert_eq!(
+            k256::PublicKey::from_affine(AffinePoint::IDENTITY).map_err(|_| Error::InvalidAffine),
+            Err(Error::InvalidAffine)
+        );
     }
 }
 
