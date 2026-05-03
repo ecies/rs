@@ -1,6 +1,5 @@
 use rand_core::OsRng;
 
-use k256::elliptic_curve::group::Group;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{PublicKey as K256PublicKey, SecretKey as K256SecretKey};
 
@@ -63,10 +62,7 @@ impl SecretKey {
     }
 
     fn as_inner(&self) -> K256SecretKey {
-        match K256SecretKey::from_slice(&self.0) {
-            Ok(secret) => secret,
-            Err(_) => unreachable!("SecretKey values are validated on construction"),
-        }
+        K256SecretKey::from_slice(&self.0).expect("SecretKey values are validated on construction")
     }
 }
 
@@ -121,11 +117,8 @@ impl PublicKey {
 
     pub fn tweak_mul_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
         let point = self.0.to_projective() * tweak.as_inner().to_nonzero_scalar().as_ref();
-        if bool::from(point.is_identity()) {
-            return Err(Error::TweakOutOfRange);
-        }
-
-        self.0 = K256PublicKey::from_affine(point.to_affine()).map_err(|_| Error::InvalidAffine)?;
+        self.0 = K256PublicKey::from_affine(point.to_affine())
+            .expect("non-identity projective points always convert to public keys");
         Ok(())
     }
 }
@@ -220,6 +213,12 @@ mod known_tests {
     }
 
     #[test]
+    fn test_invalid_secret_length() {
+        assert_eq!(parse_sk(&[1u8; 31]), Err(Error::InvalidInputLength));
+        assert_eq!(parse_sk(&[1u8; 33]), Err(Error::InvalidInputLength));
+    }
+
+    #[test]
     pub fn test_known_shared_secret() {
         let sk2 = get_sk(2);
         let sk3 = get_sk(3);
@@ -310,7 +309,9 @@ mod random_tests {
 
 #[cfg(test)]
 mod error_tests {
-    use super::{generate_keypair, Error};
+    use alloc::format;
+
+    use super::{generate_keypair, parse_pk, Error, PublicKey};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
@@ -340,6 +341,44 @@ mod error_tests {
 
         let encrypted = encrypt(&pk1.serialize_compressed(), MSG.as_bytes()).unwrap();
         assert_eq!(decrypt(&sk2.serialize(), &encrypted), Err(Error::InvalidMessage));
+    }
+
+    #[test]
+    pub fn attempts_to_parse_invalid_public_key_length() {
+        assert_eq!(parse_pk(&[0u8; 32]), Err(Error::InvalidInputLength));
+        assert_eq!(parse_pk(&[0u8; 34]), Err(Error::InvalidInputLength));
+    }
+
+    #[test]
+    pub fn formats_errors() {
+        let expected = [
+            (Error::InvalidSignature, "Invalid signature"),
+            (Error::InvalidPublicKey, "Invalid public key"),
+            (Error::InvalidSecretKey, "Invalid secret key"),
+            (Error::InvalidRecoveryId, "Invalid recovery ID"),
+            (Error::InvalidMessage, "Invalid message"),
+            (Error::InvalidInputLength, "Invalid input length"),
+            (Error::TweakOutOfRange, "Tweak out of range"),
+            (Error::InvalidAffine, "Invalid affine"),
+        ];
+
+        for (error, message) in expected {
+            assert_eq!(format!("{error}"), message);
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    pub fn error_implements_std_error() {
+        let error: &dyn std::error::Error = &Error::InvalidMessage;
+        assert_eq!(error.to_string(), "Invalid message");
+    }
+
+    #[test]
+    pub fn attempts_to_parse_invalid_public_key_bytes() {
+        let mut raw = [0u8; 65];
+        raw[0] = 0x04;
+        assert_eq!(PublicKey::parse_slice(&raw, None), Err(Error::InvalidPublicKey));
     }
 }
 
