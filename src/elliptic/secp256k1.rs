@@ -30,7 +30,7 @@ impl core::fmt::Display for Error {
             Error::InvalidMessage => write!(f, "Invalid message"),
             Error::InvalidInputLength => write!(f, "Invalid input length"),
             Error::TweakOutOfRange => write!(f, "Tweak out of range"),
-            Error::InvalidAffine => write!(f, "Invalid Affine"),
+            Error::InvalidAffine => write!(f, "Invalid affine"),
         }
     }
 }
@@ -301,7 +301,7 @@ mod random_tests {
     }
 
     #[test]
-    pub fn test_raw_public() {
+    pub fn test_raw_public_key_encryption() {
         let (sk, pk) = generate_keypair();
         let raw_pk = pk.serialize();
         test_enc_dec(&sk.serialize(), &raw_pk[1..]);
