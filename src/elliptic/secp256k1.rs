@@ -312,7 +312,10 @@ mod random_tests {
 
 #[cfg(test)]
 mod error_tests {
+    #[cfg(not(feature = "std"))]
     use alloc::format;
+    #[cfg(feature = "std")]
+    use std::format;
 
     use k256::AffinePoint;
 
@@ -376,7 +379,7 @@ mod error_tests {
     #[test]
     pub fn error_implements_std_error() {
         let error: &dyn std::error::Error = &Error::InvalidMessage;
-        assert_eq!(error.to_string(), "Invalid message");
+        assert_eq!(format!("{error}"), "Invalid message");
     }
 
     #[test]
