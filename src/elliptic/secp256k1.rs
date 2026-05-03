@@ -1,10 +1,130 @@
 use rand_core::OsRng;
 
-pub use libsecp256k1::{Error, PublicKey, SecretKey};
+use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::{PublicKey as K256PublicKey, SecretKey as K256SecretKey};
 
 use crate::compat::Vec;
 use crate::consts::SharedSecret;
 use crate::symmetric::hkdf_derive;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Error {
+    InvalidSignature,
+    InvalidPublicKey,
+    InvalidSecretKey,
+    InvalidRecoveryId,
+    InvalidMessage,
+    InvalidInputLength,
+    TweakOutOfRange,
+    InvalidAffine,
+}
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::InvalidSignature => write!(f, "Invalid signature"),
+            Error::InvalidPublicKey => write!(f, "Invalid public key"),
+            Error::InvalidSecretKey => write!(f, "Invalid secret key"),
+            Error::InvalidRecoveryId => write!(f, "Invalid recovery ID"),
+            Error::InvalidMessage => write!(f, "Invalid message"),
+            Error::InvalidInputLength => write!(f, "Invalid input length"),
+            Error::TweakOutOfRange => write!(f, "Tweak out of range"),
+            Error::InvalidAffine => write!(f, "Invalid affine"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for Error {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SecretKey([u8; 32]);
+
+impl SecretKey {
+    pub fn random(rng: &mut OsRng) -> Self {
+        Self(K256SecretKey::random(rng).to_bytes().into())
+    }
+
+    pub fn parse_slice(sk: &[u8]) -> Result<Self, Error> {
+        if sk.len() != 32 {
+            return Err(Error::InvalidInputLength);
+        }
+
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(sk);
+        K256SecretKey::from_slice(&bytes)
+            .map(|_| Self(bytes))
+            .map_err(|_| Error::InvalidSecretKey)
+    }
+
+    pub fn serialize(&self) -> [u8; 32] {
+        self.0
+    }
+
+    fn as_inner(&self) -> K256SecretKey {
+        K256SecretKey::from_slice(&self.0).expect("SecretKey values are validated on construction")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PublicKey(K256PublicKey);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PublicKeyFormat {
+    Compressed,
+    Full,
+    Raw,
+}
+
+impl PublicKey {
+    pub fn from_secret_key(seckey: &SecretKey) -> Self {
+        Self(seckey.as_inner().public_key())
+    }
+
+    pub fn parse_slice(pk: &[u8], format: Option<PublicKeyFormat>) -> Result<Self, Error> {
+        let bytes = match (pk.len(), format) {
+            (65, None) | (65, Some(PublicKeyFormat::Full)) => pk,
+            (33, None) | (33, Some(PublicKeyFormat::Compressed)) => pk,
+            (64, None) | (64, Some(PublicKeyFormat::Raw)) => {
+                let mut full = [0u8; 65];
+                full[0] = 0x04;
+                full[1..].copy_from_slice(pk);
+                return K256PublicKey::from_sec1_bytes(&full)
+                    .map(Self)
+                    .map_err(|_| Error::InvalidPublicKey);
+            }
+            _ => return Err(Error::InvalidInputLength),
+        };
+
+        K256PublicKey::from_sec1_bytes(bytes)
+            .map(Self)
+            .map_err(|_| Error::InvalidPublicKey)
+    }
+
+    pub fn serialize(&self) -> [u8; 65] {
+        let encoded = self.0.to_encoded_point(false);
+        let mut bytes = [0u8; 65];
+        bytes.copy_from_slice(encoded.as_bytes());
+        bytes
+    }
+
+    pub fn serialize_compressed(&self) -> [u8; 33] {
+        let encoded = self.0.to_encoded_point(true);
+        let mut bytes = [0u8; 33];
+        bytes.copy_from_slice(encoded.as_bytes());
+        bytes
+    }
+
+    pub fn tweak_mul_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
+        if tweak.0 == [0u8; 32] {
+            return Err(Error::TweakOutOfRange);
+        }
+
+        let point = self.0.to_projective() * tweak.as_inner().to_nonzero_scalar().as_ref();
+        self.0 = K256PublicKey::from_affine(point.to_affine()).map_err(|_| Error::InvalidAffine)?;
+        Ok(())
+    }
+}
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
@@ -96,6 +216,12 @@ mod known_tests {
     }
 
     #[test]
+    fn test_invalid_secret_length() {
+        assert_eq!(parse_sk(&[1u8; 31]), Err(Error::InvalidInputLength));
+        assert_eq!(parse_sk(&[1u8; 33]), Err(Error::InvalidInputLength));
+    }
+
+    #[test]
     pub fn test_known_shared_secret() {
         let sk2 = get_sk(2);
         let sk3 = get_sk(3);
@@ -175,11 +301,25 @@ mod random_tests {
         let (sk, pk) = (&sk.serialize(), &pk.serialize());
         test_enc_dec(sk, pk);
     }
+
+    #[test]
+    pub fn test_raw_public_key_encryption() {
+        let (sk, pk) = generate_keypair();
+        let raw_pk = pk.serialize();
+        test_enc_dec(&sk.serialize(), &raw_pk[1..]);
+    }
 }
 
 #[cfg(test)]
 mod error_tests {
-    use super::{generate_keypair, Error};
+    #[cfg(not(feature = "std"))]
+    use alloc::format;
+    #[cfg(feature = "std")]
+    use std::format;
+
+    use k256::AffinePoint;
+
+    use super::{generate_keypair, parse_pk, Error, PublicKey};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
@@ -209,6 +349,76 @@ mod error_tests {
 
         let encrypted = encrypt(&pk1.serialize_compressed(), MSG.as_bytes()).unwrap();
         assert_eq!(decrypt(&sk2.serialize(), &encrypted), Err(Error::InvalidMessage));
+    }
+
+    #[test]
+    pub fn attempts_to_parse_invalid_public_key_length() {
+        assert_eq!(parse_pk(&[0u8; 32]), Err(Error::InvalidInputLength));
+        assert_eq!(parse_pk(&[0u8; 34]), Err(Error::InvalidInputLength));
+    }
+
+    #[test]
+    pub fn formats_errors() {
+        let expected = [
+            (Error::InvalidSignature, "Invalid signature"),
+            (Error::InvalidPublicKey, "Invalid public key"),
+            (Error::InvalidSecretKey, "Invalid secret key"),
+            (Error::InvalidRecoveryId, "Invalid recovery ID"),
+            (Error::InvalidMessage, "Invalid message"),
+            (Error::InvalidInputLength, "Invalid input length"),
+            (Error::TweakOutOfRange, "Tweak out of range"),
+            (Error::InvalidAffine, "Invalid affine"),
+        ];
+
+        for (error, message) in expected {
+            assert_eq!(format!("{error}"), message);
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    pub fn error_implements_std_error() {
+        let error: &dyn std::error::Error = &Error::InvalidMessage;
+        assert_eq!(format!("{error}"), "Invalid message");
+    }
+
+    #[test]
+    pub fn attempts_to_parse_invalid_public_key_bytes() {
+        let mut raw = [0u8; 65];
+        raw[0] = 0x04;
+        assert_eq!(PublicKey::parse_slice(&raw, None), Err(Error::InvalidPublicKey));
+    }
+
+    #[test]
+    fn rejects_invalid_curve_points_before_ecdh() {
+        let mut invalid_full = [0u8; 65];
+        invalid_full[0] = 0x04;
+        let invalid_raw = [0u8; 64];
+
+        assert_eq!(encrypt(&invalid_full, MSG.as_bytes()), Err(Error::InvalidPublicKey));
+        assert_eq!(encrypt(&invalid_raw, MSG.as_bytes()), Err(Error::InvalidPublicKey));
+
+        let (sk, _) = generate_keypair();
+        let mut ciphertext = invalid_full.to_vec();
+        ciphertext.extend_from_slice(b"ciphertext");
+        assert_eq!(decrypt(&sk.serialize(), &ciphertext), Err(Error::InvalidPublicKey));
+    }
+
+    #[test]
+    fn attempts_to_multiply_by_zero_tweak() {
+        let (_, pk) = generate_keypair();
+        let zero = super::SecretKey([0u8; 32]);
+
+        let mut shared_point = pk;
+        assert_eq!(shared_point.tweak_mul_assign(&zero), Err(Error::TweakOutOfRange));
+    }
+
+    #[test]
+    fn invalid_affine_conversion_maps_to_error() {
+        assert_eq!(
+            k256::PublicKey::from_affine(AffinePoint::IDENTITY).map_err(|_| Error::InvalidAffine),
+            Err(Error::InvalidAffine)
+        );
     }
 }
 
