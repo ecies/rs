@@ -387,7 +387,22 @@ mod error_tests {
     }
 
     #[test]
-    pub fn attempts_to_multiply_by_zero_tweak() {
+    fn rejects_invalid_curve_points_before_ecdh() {
+        let mut invalid_full = [0u8; 65];
+        invalid_full[0] = 0x04;
+        let invalid_raw = [0u8; 64];
+
+        assert_eq!(encrypt(&invalid_full, MSG.as_bytes()), Err(Error::InvalidPublicKey));
+        assert_eq!(encrypt(&invalid_raw, MSG.as_bytes()), Err(Error::InvalidPublicKey));
+
+        let (sk, _) = generate_keypair();
+        let mut ciphertext = invalid_full.to_vec();
+        ciphertext.extend_from_slice(b"ciphertext");
+        assert_eq!(decrypt(&sk.serialize(), &ciphertext), Err(Error::InvalidPublicKey));
+    }
+
+    #[test]
+    fn attempts_to_multiply_by_zero_tweak() {
         let (_, pk) = generate_keypair();
         let zero = super::SecretKey([0u8; 32]);
 
@@ -396,7 +411,7 @@ mod error_tests {
     }
 
     #[test]
-    pub fn invalid_affine_conversion_maps_to_error() {
+    fn invalid_affine_conversion_maps_to_error() {
         assert_eq!(
             k256::PublicKey::from_affine(AffinePoint::IDENTITY).map_err(|_| Error::InvalidAffine),
             Err(Error::InvalidAffine)
