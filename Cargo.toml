@@ -47,7 +47,7 @@ typenum = { version = "1.19.0", default-features = false, optional = true }
 chacha20poly1305 = { version = "0.10.1", default-features = false, optional = true }
 
 # hash
-hkdf = { version = "0.12.4", default-features = false }
+hkdf = { version = "0.13.0", default-features = false }
 sha2 = { version = "0.10.9", default-features = false }
 
 # random number generator
