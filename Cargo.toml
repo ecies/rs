@@ -5,7 +5,7 @@ version = "0.2.11"
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.81"
 keywords = [ # at most five
   "secp256k1",
   "x25519",
@@ -33,11 +33,11 @@ curve25519-dalek = { version = "4.1.3", default-features = false, features = [
 x25519-dalek = { version = "2.0.1", default-features = false, features = [
   "static_secrets",
 ], optional = true }
-ed25519-dalek = { version = "~2.1.1", default-features = false, optional = true } # msrv 1.60
+ed25519-dalek = { version = "2.2.0", default-features = false, optional = true } # msrv 1.81
 
 # symmetric ciphers
 # aes (openssl)
-openssl = { version = "0.10.74", default-features = false, optional = true }
+openssl = { version = "0.10.79", default-features = false, optional = true } # msrv 1.80
 # aes (pure Rust)
 aes-gcm = { version = "0.10.3", default-features = false, features = [
   "aes",

@@ -2,7 +2,8 @@
 
 ## 0.2.11
 
-- Bump MSRV to 1.71
+- Migrate to k256 from libsecp256k1
+- Bump MSRV to 1.81 per openssl (1.80) and ed25519-dalek (1.81)
 
 ## 0.2.10
 
