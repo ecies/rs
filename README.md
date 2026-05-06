@@ -154,7 +154,8 @@ All functionalities are mutually checked among [different languages](https://git
 
 Following dependencies are audited:
 
-- [aes-gcm and chacha20poly1305](https://research.nccgroup.com/2020/02/26/public-report-rustcrypto-aes-gcm-and-chacha20poly1305-implementation-review/)
+- [k256](https://github.com/RustCrypto/elliptic-curves/tree/master/k256#security-notes)
+- [aes-gcm and chacha20poly1305](https://github.com/RustCrypto/AEADs/tree/master/aes-gcm#security-notes)
 - [OpenSSL](https://ostif.org/the-ostif-and-quarkslab-audit-of-openssl-is-complete/)
 
 ## Benchmark
