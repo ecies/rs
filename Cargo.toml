@@ -38,7 +38,7 @@ ed25519-dalek = { version = "2.2.0", default-features = false, optional = true }
 # aes (openssl)
 openssl = { version = "0.10.79", default-features = false, optional = true } # msrv 1.80
 # aes (pure Rust)
-aes-gcm = { version = "0.10.3", default-features = false, features = [
+aes-gcm = { version = "0.11.0", default-features = false, features = [
   "aes",
 ], optional = true }
 typenum = { version = "1.20.0", default-features = false, optional = true }
