@@ -24,9 +24,10 @@ mod sync;
 
 use config::{get_ephemeral_key_size, is_ephemeral_key_compressed, is_hkdf_key_compressed};
 use elliptic::{decapsulate, encapsulate, generate_keypair, parse_pk, parse_sk, pk_to_vec, Error};
-use symmetric::{sym_decrypt, sym_encrypt};
+use symmetric::{sym_decrypt_with_aad, sym_encrypt_with_aad};
 
 use crate::compat::Vec;
+use crate::consts::EMPTY_BYTES;
 pub use elliptic::{PublicKey, SecretKey};
 
 /// Encrypt a message by a public key
@@ -36,11 +37,27 @@ pub use elliptic::{PublicKey, SecretKey};
 /// * `receiver_pub` - The u8 array reference of a receiver's public key
 /// * `msg` - The u8 array reference of the message to encrypt
 pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
+    encrypt_with_aad(receiver_pub, msg, &EMPTY_BYTES)
+}
+
+/// Encrypt a message by a public key, with additional authenticated data
+/// (AAD).
+///
+/// The AAD is authenticated but not encrypted, and is not stored in the
+/// ciphertext; the same AAD must be given to [`decrypt_with_aad`]. An
+/// empty AAD produces output identical to [`encrypt`].
+///
+/// # Arguments
+///
+/// * `receiver_pub` - The u8 array reference of a receiver's public key
+/// * `msg` - The u8 array reference of the message to encrypt
+/// * `aad` - The u8 array reference of the additional authenticated data
+pub fn encrypt_with_aad(receiver_pub: &[u8], msg: &[u8], aad: &[u8]) -> Result<Vec<u8>, Error> {
     let receiver_pk = parse_pk(receiver_pub)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
     let sym_key = encapsulate(&ephemeral_sk, &receiver_pk, is_hkdf_key_compressed())?;
-    let encrypted = sym_encrypt(&sym_key, msg).ok_or(Error::InvalidMessage)?;
+    let encrypted = sym_encrypt_with_aad(&sym_key, msg, aad).ok_or(Error::InvalidMessage)?;
 
     let is_compressed = is_ephemeral_key_compressed();
     let key_size = get_ephemeral_key_size();
@@ -61,6 +78,21 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
 /// * `receiver_sec` - The u8 array reference of a receiver's secret key
 /// * `msg` - The u8 array reference of the encrypted message
 pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
+    decrypt_with_aad(receiver_sec, msg, &EMPTY_BYTES)
+}
+
+/// Decrypt a message by a secret key, with additional authenticated data
+/// (AAD).
+///
+/// Authentication fails with [`Error::InvalidMessage`] if the AAD does
+/// not match the one given to [`encrypt_with_aad`].
+///
+/// # Arguments
+///
+/// * `receiver_sec` - The u8 array reference of a receiver's secret key
+/// * `msg` - The u8 array reference of the encrypted message
+/// * `aad` - The u8 array reference of the additional authenticated data
+pub fn decrypt_with_aad(receiver_sec: &[u8], msg: &[u8], aad: &[u8]) -> Result<Vec<u8>, Error> {
     let receiver_sk = parse_sk(receiver_sec)?;
     let key_size = get_ephemeral_key_size();
 
@@ -72,5 +104,5 @@ pub fn decrypt(receiver_sec: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
     let encrypted = &msg[key_size..];
 
     let sym_key = decapsulate(&ephemeral_pk, &receiver_sk, is_hkdf_key_compressed())?;
-    sym_decrypt(&sym_key, encrypted).ok_or(Error::InvalidMessage)
+    sym_decrypt_with_aad(&sym_key, encrypted, aad).ok_or(Error::InvalidMessage)
 }

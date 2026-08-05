@@ -43,6 +43,32 @@ assert_eq!(
 );
 ```
 
+### With AAD
+
+Context (e.g., a key name) can be authenticated alongside the message
+with `encrypt_with_aad`/`decrypt_with_aad`. It is not stored in the
+ciphertext, so decryption must be given the same context, and fails if
+it does not match:
+
+```rust
+use ecies::{decrypt_with_aad, encrypt_with_aad, utils::generate_keypair};
+
+let (sk, pk) = generate_keypair();
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
+let (sk, pk) = (&sk.serialize(), &pk.serialize());
+#[cfg(feature = "x25519")]
+let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
+#[cfg(feature = "ed25519")]
+let (sk, pk) = (&sk, &pk);
+
+let encrypted = encrypt_with_aad(pk, b"msg", b"context").unwrap();
+assert_eq!(
+    b"msg",
+    decrypt_with_aad(sk, &encrypted, b"context").unwrap().as_slice()
+);
+assert!(decrypt_with_aad(sk, &encrypted, b"other").is_err());
+```
+
 ## Elliptic curve configuration
 
 ### Optional x25519/ed25519 support

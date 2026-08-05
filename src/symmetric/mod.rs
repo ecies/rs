@@ -6,12 +6,12 @@ use crate::consts::NONCE_LENGTH;
 #[cfg(any(feature = "aes-rust", feature = "xchacha20"))]
 mod aead;
 #[cfg(any(feature = "aes-rust", feature = "xchacha20"))]
-use aead::{decrypt, encrypt};
+use aead::{decrypt, decrypt_with_aad, encrypt, encrypt_with_aad};
 
 #[cfg(feature = "aes-openssl")]
 mod openssl_aes;
 #[cfg(feature = "aes-openssl")]
-use openssl_aes::{decrypt, encrypt};
+use openssl_aes::{decrypt, decrypt_with_aad, encrypt, encrypt_with_aad};
 
 mod hash;
 
@@ -28,16 +28,36 @@ pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     encrypt(key, &nonce, msg)
 }
 
+/// Symmetric encryption wrapper with additional authenticated data (AAD).
+///
+/// The AAD is authenticated but not encrypted, and is not stored in the
+/// output; the same AAD must be given to [`sym_decrypt_with_aad`]. An
+/// empty AAD is equivalent to [`sym_encrypt`].
+pub fn sym_encrypt_with_aad(key: &[u8], msg: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
+    let mut nonce = [0u8; NONCE_LENGTH];
+    OsRng.fill_bytes(&mut nonce);
+    encrypt_with_aad(key, &nonce, msg, aad)
+}
+
 /// Symmetric decryption wrapper
 pub fn sym_decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
     decrypt(key, encrypted)
+}
+
+/// Symmetric decryption wrapper with additional authenticated data
+/// (AAD).
+///
+/// Authentication fails if the AAD does not match the one given to
+/// [`sym_encrypt_with_aad`].
+pub fn sym_decrypt_with_aad(key: &[u8], encrypted: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
+    decrypt_with_aad(key, encrypted, aad)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        consts::{NONCE_TAG_LENGTH, ZERO_SECRET},
+        consts::{EMPTY_BYTES, NONCE_TAG_LENGTH, ZERO_SECRET},
         utils::tests::decode_hex,
     };
 
@@ -58,6 +78,56 @@ mod tests {
             let encrypted = sym_encrypt(&key, msg).unwrap();
             assert_eq!(msg.to_vec(), sym_decrypt(&key, &encrypted).unwrap());
         }
+    }
+
+    #[test]
+    pub(super) fn test_aad() {
+        let mut key = ZERO_SECRET;
+        OsRng.fill_bytes(&mut key);
+        let msg = b"bound to this context";
+
+        let encrypted = sym_encrypt_with_aad(&key, msg, b"entry-name").unwrap();
+        // Correct AAD decrypts.
+        assert_eq!(
+            msg.to_vec(),
+            sym_decrypt_with_aad(&key, &encrypted, b"entry-name").unwrap()
+        );
+        // Wrong or missing AAD fails authentication.
+        assert!(sym_decrypt_with_aad(&key, &encrypted, b"other-name").is_none());
+        assert!(sym_decrypt(&key, &encrypted).is_none());
+
+        // Empty AAD is equivalent to the legacy wrappers.
+        let legacy = sym_encrypt(&key, msg).unwrap();
+        assert_eq!(msg.to_vec(), sym_decrypt_with_aad(&key, &legacy, &EMPTY_BYTES).unwrap());
+        assert_eq!(msg.to_vec(), sym_decrypt(&key, &legacy).unwrap());
+    }
+
+    #[test]
+    #[cfg(all(feature = "aes-rust", not(feature = "aes-short-nonce"), not(feature = "xchacha20")))]
+    pub(super) fn test_aes_aad_layout() {
+        // Verify the wire layout (nonce || tag || ct) and the AAD
+        // placement against a direct aes-gcm call.
+        use aes_gcm::aead::{generic_array::GenericArray, AeadInPlace};
+        use aes_gcm::{aes::Aes256, AesGcm, KeyInit};
+
+        type Cipher = AesGcm<Aes256, typenum::consts::U16>;
+
+        let key = [7u8; 32];
+        let nonce = [3u8; NONCE_LENGTH];
+        let aad = b"entry-name";
+        let msg = b"bound plaintext";
+
+        // Reference: ct and tag computed by the aes-gcm crate directly,
+        // bypassing our wrapper entirely.
+        let mut ref_ct = msg.to_vec();
+        let ref_tag = Cipher::new(GenericArray::from_slice(&key))
+            .encrypt_in_place_detached(GenericArray::from_slice(&nonce), aad, &mut ref_ct)
+            .unwrap();
+
+        let ours = encrypt_with_aad(&key, &nonce, msg, aad).unwrap();
+        assert_eq!(&ours[..NONCE_LENGTH], &nonce);
+        assert_eq!(&ours[NONCE_LENGTH..NONCE_TAG_LENGTH], ref_tag.as_slice());
+        assert_eq!(&ours[NONCE_TAG_LENGTH..], ref_ct.as_slice());
     }
 
     #[test]

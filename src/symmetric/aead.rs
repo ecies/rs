@@ -23,6 +23,16 @@ use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH
 ///
 /// It's basically safe to just `unwrap` the returned `Option<Vec<u8>>`.
 pub fn encrypt(key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+    encrypt_with_aad(key, nonce, msg, &EMPTY_BYTES)
+}
+
+/// Pure Rust AES-256-GCM or XChaCha20-Poly1305 encryption wrapper with
+/// additional authenticated data (AAD).
+///
+/// The AAD is authenticated but not encrypted, and is not stored in the
+/// output; the same AAD must be given to [`decrypt_with_aad`]. An empty
+/// AAD is equivalent to [`encrypt`].
+pub fn encrypt_with_aad(key: &[u8], nonce: &[u8], msg: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
     let key = GenericArray::from_slice(key);
     let aead = Cipher::new(key);
 
@@ -32,7 +42,7 @@ pub fn encrypt(key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
     output.extend(msg);
 
     let nonce = GenericArray::from_slice(nonce);
-    aead.encrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut output[NONCE_TAG_LENGTH..])
+    aead.encrypt_in_place_detached(nonce, aad, &mut output[NONCE_TAG_LENGTH..])
         .map(|tag| {
             output[NONCE_LENGTH..NONCE_TAG_LENGTH].copy_from_slice(tag.as_slice());
             output
@@ -42,6 +52,15 @@ pub fn encrypt(key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 
 /// Pure Rust AES-256-GCM or XChaCha20-Poly1305 decryption wrapper
 pub fn decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
+    decrypt_with_aad(key, encrypted, &EMPTY_BYTES)
+}
+
+/// Pure Rust AES-256-GCM or XChaCha20-Poly1305 decryption wrapper with
+/// additional authenticated data (AAD).
+///
+/// Authentication fails if the AAD does not match the one given to
+/// [`encrypt_with_aad`].
+pub fn decrypt_with_aad(key: &[u8], encrypted: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
     if encrypted.len() < NONCE_TAG_LENGTH {
         return None;
     }
@@ -54,7 +73,7 @@ pub fn decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(encrypted.len() - NONCE_TAG_LENGTH);
     out.extend(&encrypted[NONCE_TAG_LENGTH..]);
 
-    aead.decrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut out, tag)
+    aead.decrypt_in_place_detached(nonce, aad, &mut out, tag)
         .map(|_| out)
         .ok()
 }
