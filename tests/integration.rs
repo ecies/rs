@@ -54,3 +54,29 @@ fn is_compatible_with_python() {
 
     assert_eq!(res.as_bytes(), MSG.as_bytes());
 }
+
+#[test]
+#[cfg(all(not(target_arch = "wasm32"), all(not(feature = "x25519"), not(feature = "ed25519")),))]
+fn test_aad() {
+    use ecies::utils::generate_keypair;
+    use ecies::{decrypt, decrypt_with_aad, encrypt, encrypt_with_aad};
+    let (sk, pk) = generate_keypair();
+    let (sk, pk) = (sk.serialize(), pk.serialize());
+
+    const MSG: &[u8] = b"hello aad";
+    const AAD: &[u8] = b"entry:DATABASE_PASSWORD";
+
+    // Correct AAD round-trips.
+    let ct = encrypt_with_aad(&pk, MSG, AAD).unwrap();
+    assert_eq!(decrypt_with_aad(&sk, &ct, AAD).unwrap(), MSG);
+
+    // Wrong or missing AAD fails closed.
+    assert!(decrypt_with_aad(&sk, &ct, b"entry:API_TOKEN").is_err());
+    assert!(decrypt(&sk, &ct).is_err());
+
+    // Empty AAD is equivalent to the legacy API in both directions.
+    let legacy = encrypt(&pk, MSG).unwrap();
+    assert_eq!(decrypt_with_aad(&sk, &legacy, b"").unwrap(), MSG);
+    assert_eq!(decrypt(&sk, &legacy).unwrap(), MSG);
+    assert_eq!(encrypt_with_aad(&pk, MSG, b"").unwrap().len(), legacy.len());
+}
