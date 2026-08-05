@@ -56,7 +56,7 @@ fn is_compatible_with_python() {
 }
 
 #[test]
-#[cfg(all(not(target_arch = "wasm32"), all(not(feature = "x25519"), not(feature = "ed25519")),))]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "x25519"), not(feature = "ed25519"),))]
 fn test_aad() {
     use ecies::utils::generate_keypair;
     use ecies::{decrypt, decrypt_with_aad, encrypt, encrypt_with_aad};
