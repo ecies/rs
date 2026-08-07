@@ -1,11 +1,11 @@
 #[cfg(all(feature = "aes-rust", not(feature = "xchacha20")))]
-use aes_gcm::{self as cipher, aes::Aes256, AesGcm};
+use aes_gcm::{self as cipher, AesGcm, aes::Aes256};
 #[cfg(all(feature = "xchacha20", not(feature = "aes-rust")))]
 use chacha20poly1305::{self as cipher, XChaCha20Poly1305};
 
 use cipher::{
-    aead::{generic_array::GenericArray, AeadInPlace},
     KeyInit,
+    aead::{AeadInPlace, generic_array::GenericArray},
 };
 
 #[cfg(all(feature = "aes-rust", feature = "aes-short-nonce"))]

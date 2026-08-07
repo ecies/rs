@@ -1,5 +1,5 @@
 use core::time::Duration;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 const BIG_MSG_SIZE: usize = 100 * 1024 * 1024;
 const BIGGER_MSG_SIZE: usize = 200 * 1024 * 1024;

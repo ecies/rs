@@ -122,7 +122,9 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted() {
         let sk = decode_hex("9434b8fc5036bf967b8483a1bf7378f094d90e01393e4e880db0080022ce6330");
-        let encrypted = decode_hex("02c351532928d20b9be0c354e029fd387e032d5318d71ca0ea361b8c62bae86794f6208f17b01affe66ab9edc728a25fac317b41dee123c3aee8684e9c771cfbc2c94c0fe0945ea7cad55b3eb11712");
+        let encrypted = decode_hex(
+            "02c351532928d20b9be0c354e029fd387e032d5318d71ca0ea361b8c62bae86794f6208f17b01affe66ab9edc728a25fac317b41dee123c3aee8684e9c771cfbc2c94c0fe0945ea7cad55b3eb11712",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
@@ -130,7 +132,9 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted_short_nonce() {
         let sk = decode_hex("abba7856619f7923038f03e7365bb166334075cc6b2d57a5c801776a8b506a52");
-        let encrypted = decode_hex("0a16e5b8df916e845aca761353a4776f61785601768e21ca2b359c893d8a304b3cda271597715650d17f43b37379cd587d5466579e3a59da051b5ed49739a91c996cb34c65c8b7ae68fdf3");
+        let encrypted = decode_hex(
+            "0a16e5b8df916e845aca761353a4776f61785601768e21ca2b359c893d8a304b3cda271597715650d17f43b37379cd587d5466579e3a59da051b5ed49739a91c996cb34c65c8b7ae68fdf3",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
@@ -138,14 +142,16 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted_xchacha20() {
         let sk = decode_hex("6e180c5ae2528fd4799111629b397b2faa48d8074f37cc686aa4139c74103049");
-        let encrypted = decode_hex("6093c37db0385e92860f1213a6e3c75f82b529fad9ddcfdfbcf997dcdf5d8166e275a5ff509362bb50fbbe4f9ef1617ae10c6a7e93f1ef7e5bed7da681278126cd8114f41843d7797007509565b4aca0a3dd473f48265b");
+        let encrypted = decode_hex(
+            "6093c37db0385e92860f1213a6e3c75f82b529fad9ddcfdfbcf997dcdf5d8166e275a5ff509362bb50fbbe4f9ef1617ae10c6a7e93f1ef7e5bed7da681278126cd8114f41843d7797007509565b4aca0a3dd473f48265b",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 }
 
 #[cfg(test)]
 mod error_tests {
-    use super::{generate_keypair, Error};
+    use super::{Error, generate_keypair};
     use crate::{consts::ZERO_SECRET, decrypt, encrypt};
 
     #[cfg(not(feature = "std"))]

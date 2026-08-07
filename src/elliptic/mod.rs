@@ -1,23 +1,23 @@
 #[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 mod secp256k1;
 #[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
-pub use secp256k1::{decapsulate, encapsulate, generate_keypair, PublicKey, SecretKey};
+pub(crate) use secp256k1::{Error, parse_pk, parse_sk, pk_to_vec};
 #[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
-pub(crate) use secp256k1::{parse_pk, parse_sk, pk_to_vec, Error};
+pub use secp256k1::{PublicKey, SecretKey, decapsulate, encapsulate, generate_keypair};
 
 #[cfg(feature = "x25519")]
 mod x25519;
 #[cfg(feature = "x25519")]
-pub use x25519::{decapsulate, encapsulate, generate_keypair, PublicKey, SecretKey};
+pub(crate) use x25519::{Error, parse_pk, parse_sk, pk_to_vec};
 #[cfg(feature = "x25519")]
-pub(crate) use x25519::{parse_pk, parse_sk, pk_to_vec, Error};
+pub use x25519::{PublicKey, SecretKey, decapsulate, encapsulate, generate_keypair};
 
 #[cfg(feature = "ed25519")]
 mod ed25519;
 #[cfg(feature = "ed25519")]
-pub use ed25519::{decapsulate, encapsulate, generate_keypair, PublicKey, SecretKey};
+pub(crate) use ed25519::{Error, parse_pk, parse_sk, pk_to_vec};
 #[cfg(feature = "ed25519")]
-pub(crate) use ed25519::{parse_pk, parse_sk, pk_to_vec, Error};
+pub use ed25519::{PublicKey, SecretKey, decapsulate, encapsulate, generate_keypair};
 
 #[cfg(test)]
 mod tests {

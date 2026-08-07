@@ -23,7 +23,7 @@ mod elliptic;
 mod sync;
 
 use config::{get_ephemeral_key_size, is_ephemeral_key_compressed, is_hkdf_key_compressed};
-use elliptic::{decapsulate, encapsulate, generate_keypair, parse_pk, parse_sk, pk_to_vec, Error};
+use elliptic::{Error, decapsulate, encapsulate, generate_keypair, parse_pk, parse_sk, pk_to_vec};
 use symmetric::{sym_decrypt, sym_encrypt};
 
 use crate::compat::Vec;

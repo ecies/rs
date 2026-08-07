@@ -1,11 +1,11 @@
 [package]
 name = "ecies"
-version = "0.2.11"
+version = "0.2.12"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
-edition = "2021"
-rust-version = "1.81"
+edition = "2024"
+rust-version = "1.85"
 keywords = [ # at most five
   "secp256k1",
   "x25519",
@@ -36,18 +36,18 @@ ed25519-dalek = { version = "2.2.0", default-features = false, optional = true }
 
 # symmetric ciphers
 # aes (openssl)
-openssl = { version = "0.10.79", default-features = false, optional = true } # msrv 1.80
+openssl = { version = "0.10.81", default-features = false, optional = true } # msrv 1.80
 # aes (pure Rust)
 aes-gcm = { version = "0.10.3", default-features = false, features = [
   "aes",
 ], optional = true }
-typenum = { version = "1.20.0", default-features = false, optional = true }
+typenum = { version = "1.20.1", default-features = false, optional = true }
 # xchacha20
 chacha20poly1305 = { version = "0.10.1", default-features = false, optional = true }
 
 # hash
-hkdf = { version = "0.12.4", default-features = false }
-sha2 = { version = "0.10.9", default-features = false }
+hkdf = { version = "0.13.0", default-features = false }
+sha2 = { version = "0.11.0", default-features = false }
 
 # random number generator
 getrandom = { version = "0.2.17", default-features = false }
@@ -66,7 +66,7 @@ parking_lot = { version = "0.12.5", optional = true }
 # only for js (browser or node). if it's not js, like substrate, it won't build
 getrandom = { version = "0.2.17", default-features = false, features = ["js"] }
 once_cell = { version = "1.21.4", default-features = false, features = ["std"] }
-wasm-bindgen = { version = "0.2.120", default-features = false }
+wasm-bindgen = { version = "0.2.126", default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
 # for wasm32-wasip2
@@ -74,7 +74,7 @@ once_cell = { version = "1.21.4", default-features = false, features = ["std"] }
 
 [features]
 default = ["aes-openssl"]
-std = ["hkdf/std", "sha2/std", "once_cell/std", "dep:parking_lot"]
+std = ["once_cell/std", "dep:parking_lot"]
 
 # curves
 # no usage, TODO: make optional after 0.3.0: secp256k1 = ["dep:k256"]
@@ -104,15 +104,15 @@ criterion = { version = "0.8.2", default-features = false }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.55"
+wasm-bindgen-test = "0.3.76"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-futures-util = "0.3.31"
-reqwest = { version = "0.13.3", default-features = false, features = [
+futures-util = "0.3.33"
+reqwest = { version = "0.13.4", default-features = false, features = [
   "default-tls",
   "form",
 ] }
-tokio = { version = "1.48.0", default-features = false, features = [
+tokio = { version = "1.53.1", default-features = false, features = [
   "rt-multi-thread",
 ] }
 
