@@ -1,7 +1,9 @@
-use rand_core::{CryptoRngCore, OsRng};
+use getrandom::SysRng;
+use rand_core::{CryptoRng, UnwrapErr};
 
+use k256::elliptic_curve::Generate;
 use k256::elliptic_curve::sec1::ToSec1Point;
-use k256::{PublicKey as K256PublicKey, SecretKey as K256SecretKey};
+use k256::{NonZeroScalar, PublicKey as K256PublicKey, SecretKey as K256SecretKey};
 
 use crate::compat::Vec;
 use crate::consts::SharedSecret;
@@ -46,30 +48,14 @@ impl core::fmt::Debug for SecretKey {
 impl SecretKey {
     /// Generate a random `SecretKey` from the OS's cryptographically secure random number generator
     pub fn generate() -> Self {
-        Self::generate_from_rng(&mut OsRng)
+        Self::generate_from_rng(&mut UnwrapErr(SysRng))
     }
 
     /// Generate a random `SecretKey` from the given cryptographically secure random number generator
-    ///
-    /// The `rng` parameter will change to a rand_core 0.10 type in the next breaking release
-    pub fn generate_from_rng(rng: &mut impl CryptoRngCore) -> Self {
-        // k256 takes rand_core 0.10 RNGs, so sample by rejection here to keep the rand_core 0.6 interface
-        let mut bytes = [0u8; 32];
-        loop {
-            rng.fill_bytes(&mut bytes);
-            if let Ok(sk) = K256SecretKey::from_slice(&bytes) {
-                return Self(sk);
-            }
-        }
-    }
-
-    #[deprecated(
-        since = "0.2.12",
-        note = "use `generate` instead. \
-        The next breaking release bumps curve libraries, which move to rand_core 0.10, where `OsRng` no longer exists"
-    )]
-    pub fn random(rng: &mut OsRng) -> Self {
-        Self::generate_from_rng(rng)
+    pub fn generate_from_rng<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+        // `K256SecretKey::generate_from_rng` reads the bytes little-endian and accepts zero. This draws 32 bytes
+        // as a big-endian scalar and retries on zero or on the curve order or above, as 0.2 did
+        Self(K256SecretKey::from(NonZeroScalar::generate_from_rng(rng)))
     }
 
     pub fn parse_slice(sk: &[u8]) -> Result<Self, Error> {
@@ -331,9 +317,9 @@ mod known_tests {
 
 #[cfg(test)]
 mod random_tests {
-    use rand_core::OsRng;
+    use rand_core::{Infallible, TryCryptoRng, TryRng};
 
-    use super::{PublicKey, SecretKey, generate_keypair};
+    use super::{SecretKey, generate_keypair};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
@@ -357,37 +343,50 @@ mod random_tests {
         assert_ne!(pk1, pk2);
     }
 
-    #[test]
-    #[allow(deprecated)]
-    pub fn test_deprecated_random() {
-        let sk = SecretKey::random(&mut OsRng);
-        let pk = PublicKey::from_secret_key(&sk);
+    /// Hands out a fixed byte stream, so a test can pin which key an RNG's output makes
+    struct FixedRng<'a>(&'a [u8]);
 
-        test_enc_dec(&sk.serialize(), &pk.serialize_compressed());
+    impl TryRng for FixedRng<'_> {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+            let mut bytes = [0u8; 4];
+            self.try_fill_bytes(&mut bytes)?;
+            Ok(u32::from_le_bytes(bytes))
+        }
+
+        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+            let mut bytes = [0u8; 8];
+            self.try_fill_bytes(&mut bytes)?;
+            Ok(u64::from_le_bytes(bytes))
+        }
+
+        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+            let (head, rest) = self.0.split_at(dst.len());
+            dst.copy_from_slice(head);
+            self.0 = rest;
+            Ok(())
+        }
+    }
+
+    impl TryCryptoRng for FixedRng<'_> {}
+
+    #[test]
+    pub fn test_generate_from_rng_rejects_invalid_scalars() {
+        // zero, then a value above the curve order, then all ones: only the last is a valid key
+        let mut stream = [0u8; 96];
+        stream[32..64].fill(0xff);
+        stream[64..].fill(1);
+        let sk = SecretKey::generate_from_rng(&mut FixedRng(&stream));
+        assert_eq!(sk.serialize(), [1u8; 32]);
     }
 
     #[test]
-    fn test_generate_from_rng_rejects_zero() {
-        use rand_core::CryptoRng;
-        use rand_core::block::{BlockRng, BlockRngCore};
-
-        // yields an all-zero key first, which is invalid, then all ones
-        struct ZeroThenOnes(bool);
-
-        impl BlockRngCore for ZeroThenOnes {
-            type Item = u32;
-            type Results = [u32; 8];
-
-            fn generate(&mut self, results: &mut Self::Results) {
-                results.fill(if self.0 { 0x01010101 } else { 0 });
-                self.0 = true;
-            }
-        }
-
-        impl CryptoRng for ZeroThenOnes {}
-
-        let sk = SecretKey::generate_from_rng(&mut BlockRng::new(ZeroThenOnes(false)));
-        assert_eq!(sk.serialize(), [1u8; 32]);
+    pub fn test_generate_from_rng_reads_big_endian() {
+        // 0.2.16 read the RNG's bytes as a big-endian scalar, so a seeded RNG must keep making the same key
+        let stream: [u8; 32] = core::array::from_fn(|i| i as u8 + 1);
+        let sk = SecretKey::generate_from_rng(&mut FixedRng(&stream));
+        assert_eq!(sk.serialize(), stream);
     }
 
     #[test]
@@ -700,7 +699,8 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_random() {
-        super::random_tests::test_deprecated_random();
+        super::random_tests::test_generate_from_rng_rejects_invalid_scalars();
+        super::random_tests::test_generate_from_rng_reads_big_endian();
         super::random_tests::test_compressed_public();
         super::random_tests::test_uncompressed_public();
     }

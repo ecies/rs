@@ -1,4 +1,6 @@
-use rand_core::{OsRng, RngCore};
+use crypto_common::Generate;
+use getrandom::SysRng;
+use rand_core::UnwrapErr;
 
 use crate::compat::Vec;
 use crate::consts::NONCE_LENGTH;
@@ -36,8 +38,7 @@ pub(crate) fn sym_encrypt_with_aad(key: &[u8], msg: &[u8], aad: &[u8]) -> Option
 
 /// Symmetric encryption appending the nonce, tag and ciphertext to the provided buffer
 pub(crate) fn sym_encrypt_into(output: &mut Vec<u8>, key: &[u8], msg: &[u8], aad: &[u8]) -> Option<()> {
-    let mut nonce = [0u8; NONCE_LENGTH];
-    OsRng.fill_bytes(&mut nonce);
+    let nonce: [u8; NONCE_LENGTH] = Generate::generate_from_rng(&mut UnwrapErr(SysRng));
     encrypt_into(output, key, &nonce, msg, aad)
 }
 
@@ -54,10 +55,7 @@ pub(crate) fn sym_decrypt_with_aad(key: &[u8], encrypted: &[u8], aad: &[u8]) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        consts::{NONCE_TAG_LENGTH, ZERO_SECRET},
-        utils::tests::decode_hex,
-    };
+    use crate::{consts::NONCE_TAG_LENGTH, utils::tests::decode_hex};
 
     #[test]
     pub(super) fn attempts_to_decrypt_invalid_message() {
@@ -68,11 +66,9 @@ mod tests {
 
     #[test]
     pub(super) fn test_random_key() {
-        let mut key = ZERO_SECRET;
-
         let texts = [b"this is a text", "😀😀😀😀".as_bytes()];
         for msg in texts.iter() {
-            OsRng.fill_bytes(&mut key);
+            let key: [u8; 32] = Generate::generate_from_rng(&mut UnwrapErr(SysRng));
             let encrypted = sym_encrypt(&key, msg).unwrap();
             assert_eq!(msg.to_vec(), sym_decrypt(&key, &encrypted).unwrap());
         }
