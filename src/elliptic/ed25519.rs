@@ -1,7 +1,9 @@
+use crypto_common::Generate;
 use curve25519_dalek::EdwardsPoint;
 use curve25519_dalek::{constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY};
 use ed25519_dalek::SigningKey;
-use rand_core::{OsRng, RngCore};
+use getrandom::SysRng;
+use rand_core::UnwrapErr;
 
 pub use ed25519_dalek::SecretKey;
 
@@ -31,8 +33,7 @@ impl core::fmt::Display for Error {
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let mut sk = ZERO_SECRET;
-    OsRng.fill_bytes(&mut sk);
+    let sk: SecretKey = Generate::generate_from_rng(&mut UnwrapErr(SysRng));
     (sk, to_public_key(&sk).to_bytes())
 }
 

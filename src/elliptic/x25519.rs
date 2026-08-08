@@ -1,4 +1,5 @@
-use rand_core::OsRng;
+use getrandom::SysRng;
+use rand_core::UnwrapErr;
 
 pub use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
 
@@ -24,7 +25,7 @@ impl core::fmt::Display for Error {
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let sk = SecretKey::random_from_rng(OsRng);
+    let sk = SecretKey::random_from_rng(&mut UnwrapErr(SysRng));
     let pk = PublicKey::from(&sk);
     (sk, pk)
 }
