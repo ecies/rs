@@ -180,7 +180,7 @@ fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey, compres
 
 #[cfg(test)]
 mod known_tests {
-    use super::{encapsulate, parse_sk, Error, PublicKey, SecretKey};
+    use super::{Error, PublicKey, SecretKey, encapsulate, parse_sk};
 
     use crate::consts::ZERO_SECRET;
     use crate::decrypt;
@@ -242,7 +242,9 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted() {
         let sk = decode_hex("e520872701d9ec44dbac2eab85512ad14ad0c42e01de56d7b528abd8524fcb47");
-        let encrypted = decode_hex("0x047be1885aeb48d4d4db0c992996725d3264784fef88c5b60782f8d0f940c213227fc3f904f846d5ec3d0fba6653754501e8ebadc421aa3892a20fef33cff0206047058a4cfb4efbeae96b2d019b4ab2edce33328748a0d008a69c8f5816b72d45bd9b5a41bb6ea0127ab23057ec6fcd");
+        let encrypted = decode_hex(
+            "0x047be1885aeb48d4d4db0c992996725d3264784fef88c5b60782f8d0f940c213227fc3f904f846d5ec3d0fba6653754501e8ebadc421aa3892a20fef33cff0206047058a4cfb4efbeae96b2d019b4ab2edce33328748a0d008a69c8f5816b72d45bd9b5a41bb6ea0127ab23057ec6fcd",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
@@ -250,7 +252,9 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted_short_nonce() {
         let sk = decode_hex("562b6cd3611d463f2c59218f1be2816472ad4a489450873dd585de7df662bb68");
-        let encrypted = decode_hex("04e1b4678e49066bb9e12cc39aa303bf46b1bf4f565ffa56b9e5ebfa05b756612a548b06dfdd1d06afb64ab7a7e52e26e3a1c69da8fe0c3ea125848d44066f90c826f9a8b0c8951a06d9b20b3d434dc650862d85fcd4fb4b3f30e0658661d24cb9c31bcae0bf56564495c64b");
+        let encrypted = decode_hex(
+            "04e1b4678e49066bb9e12cc39aa303bf46b1bf4f565ffa56b9e5ebfa05b756612a548b06dfdd1d06afb64ab7a7e52e26e3a1c69da8fe0c3ea125848d44066f90c826f9a8b0c8951a06d9b20b3d434dc650862d85fcd4fb4b3f30e0658661d24cb9c31bcae0bf56564495c64b",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
@@ -258,7 +262,9 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted_xchacha20() {
         let sk = decode_hex("9445d8b9911622546a266b2e663bf2b498073a64279409afb9ef20f8259c651f");
-        let encrypted = decode_hex("04eaf35ad4dde0ace3f673fec6be164dc68e11aa9c1988d4c1b91f0ccdef94cf591aae4e9daf5f8a87837136fc70811df852015a8b4e2cb374c27db16933536085f34470ffef72667bbe984c145302fc8d37f66563339c47f41ef871ee0ebda8c1bad133c3b203c769cb694e5adbd6c9f02b2eedd939875a");
+        let encrypted = decode_hex(
+            "04eaf35ad4dde0ace3f673fec6be164dc68e11aa9c1988d4c1b91f0ccdef94cf591aae4e9daf5f8a87837136fc70811df852015a8b4e2cb374c27db16933536085f34470ffef72667bbe984c145302fc8d37f66563339c47f41ef871ee0ebda8c1bad133c3b203c769cb694e5adbd6c9f02b2eedd939875a",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 }
@@ -317,7 +323,7 @@ mod error_tests {
     #[cfg(feature = "std")]
     use std::format;
 
-    use super::{generate_keypair, parse_pk, Error, PublicKey};
+    use super::{Error, PublicKey, generate_keypair, parse_pk};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
@@ -411,8 +417,8 @@ mod error_tests {
 mod config_tests {
     use super::generate_keypair;
 
-    use crate::config::{reset_config, update_config, Config};
-    use crate::{decrypt, encrypt, Error};
+    use crate::config::{Config, reset_config, update_config};
+    use crate::{Error, decrypt, encrypt};
 
     const MSG: &str = "helloworld🌍";
 

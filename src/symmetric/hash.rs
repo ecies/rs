@@ -2,7 +2,7 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 use crate::compat::Vec;
-use crate::consts::{SharedSecret, EMPTY_BYTES, ZERO_SECRET};
+use crate::consts::{EMPTY_BYTES, SharedSecret, ZERO_SECRET};
 
 pub fn hkdf_derive(part1: &[u8], part2: &[u8]) -> SharedSecret {
     let size = part1.len() + part2.len();

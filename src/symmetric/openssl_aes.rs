@@ -1,7 +1,7 @@
-use openssl::symm::{decrypt_aead, encrypt_aead, Cipher};
+use openssl::symm::{Cipher, decrypt_aead, encrypt_aead};
 
-use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH};
 use crate::Vec;
+use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH};
 
 /// AES-256-GCM encryption wrapper
 pub fn encrypt(key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<Vec<u8>> {

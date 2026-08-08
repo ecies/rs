@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.12
+
+- Bump dependencies
+- Bump MSRV to 1.85 and edition to 2024
+
 ## 0.2.11
 
 - Migrate to k256 from libsecp256k1

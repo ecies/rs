@@ -6,7 +6,7 @@ use rand_core::{OsRng, RngCore};
 pub use ed25519_dalek::SecretKey;
 
 use crate::compat::Vec;
-use crate::consts::{SharedSecret, PUBLIC_KEY_SIZE, ZERO_SECRET};
+use crate::consts::{PUBLIC_KEY_SIZE, SharedSecret, ZERO_SECRET};
 use crate::symmetric::hkdf_derive;
 
 pub type PublicKey = [u8; PUBLIC_KEY_SIZE];
@@ -120,7 +120,9 @@ mod known_tests {
     #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
     pub fn test_known_encrypted() {
         let sk = decode_hex("8be70d30035b24e13377678a3f612cf72333327ff2865def5544ea877ff50c82");
-        let encrypted = decode_hex("2c82dd9f8525e0f430e3e548817d4aa990e14c2732bc828aaf837e8a06a797845e1928fa4edd620fd6a966915e8a6f2b57236098f666156f34f86a8e2fbaeba3c7fb8572838464f0fb036f59da75db");
+        let encrypted = decode_hex(
+            "2c82dd9f8525e0f430e3e548817d4aa990e14c2732bc828aaf837e8a06a797845e1928fa4edd620fd6a966915e8a6f2b57236098f666156f34f86a8e2fbaeba3c7fb8572838464f0fb036f59da75db",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
@@ -128,7 +130,9 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted_short_nonce() {
         let sk = decode_hex("558eee18659895fc5f2acaef8ca78856cbfd25a33934302a0994eedd43dda03e");
-        let encrypted = decode_hex("37762d915f19e2aba8a36695b7a9aefffe40837ba19b2e7bbbfa905fe31e50416bde970c71ffbc96c279235015f6a6c258e58c8161446aeee8bb15857a3681eb0afa1b2a19c7070ca5280b");
+        let encrypted = decode_hex(
+            "37762d915f19e2aba8a36695b7a9aefffe40837ba19b2e7bbbfa905fe31e50416bde970c71ffbc96c279235015f6a6c258e58c8161446aeee8bb15857a3681eb0afa1b2a19c7070ca5280b",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
@@ -136,7 +140,9 @@ mod known_tests {
     #[test]
     pub fn test_known_encrypted_xchacha20() {
         let sk = decode_hex("b39f66f08a6a56816d55a55bb61c5013be547f3018f363046be5433be3a112c3");
-        let encrypted = decode_hex("966a90cdd649b65b04ed1879c483ae001a1ec8dc03892c430adc95310d665af06ad3561d413a99ce8b1405a19c313330ec8a05f5f271eb770a55bcad345303b65c9558a1a739a345b7bfb778540318d0cbfe20d400ebfe");
+        let encrypted = decode_hex(
+            "966a90cdd649b65b04ed1879c483ae001a1ec8dc03892c430adc95310d665af06ad3561d413a99ce8b1405a19c313330ec8a05f5f271eb770a55bcad345303b65c9558a1a739a345b7bfb778540318d0cbfe20d400ebfe",
+        );
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 }
@@ -175,7 +181,7 @@ mod random_tests {
 
 #[cfg(test)]
 mod error_tests {
-    use super::{generate_keypair, Error, ZERO_SECRET};
+    use super::{Error, ZERO_SECRET, generate_keypair};
     use crate::{decrypt, encrypt};
 
     #[cfg(not(feature = "std"))]
