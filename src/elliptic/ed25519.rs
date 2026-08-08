@@ -1,12 +1,14 @@
+use crypto_common::Generate;
 use curve25519_dalek::EdwardsPoint;
 use curve25519_dalek::{constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY};
 use ed25519_dalek::SigningKey;
-use rand_core::{OsRng, RngCore};
+use getrandom::SysRng;
+use rand_core::UnwrapErr;
 
 pub use ed25519_dalek::SecretKey;
 
 use crate::compat::Vec;
-use crate::consts::{PUBLIC_KEY_SIZE, SharedSecret, ZERO_SECRET};
+use crate::consts::{PUBLIC_KEY_SIZE, SharedSecret};
 use crate::symmetric::hkdf_derive;
 
 pub type PublicKey = [u8; PUBLIC_KEY_SIZE];
@@ -31,8 +33,7 @@ impl core::fmt::Display for Error {
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let mut sk = ZERO_SECRET;
-    OsRng.fill_bytes(&mut sk);
+    let sk: SecretKey = Generate::generate_from_rng(&mut UnwrapErr(SysRng));
     (sk, to_public_key(&sk).to_bytes())
 }
 
@@ -186,7 +187,8 @@ mod random_tests {
 
 #[cfg(test)]
 mod error_tests {
-    use super::{Error, ZERO_SECRET, generate_keypair};
+    use super::{Error, generate_keypair};
+    use crate::consts::ZERO_SECRET;
     use crate::{decrypt, encrypt};
 
     #[cfg(not(feature = "std"))]

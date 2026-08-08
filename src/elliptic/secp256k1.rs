@@ -1,5 +1,7 @@
-use rand_core::{CryptoRngCore, OsRng};
+use getrandom::SysRng;
+use rand_core::{CryptoRng, UnwrapErr};
 
+use k256::elliptic_curve::Generate;
 use k256::elliptic_curve::sec1::ToSec1Point;
 use k256::{PublicKey as K256PublicKey, SecretKey as K256SecretKey};
 
@@ -46,21 +48,12 @@ impl core::fmt::Debug for SecretKey {
 impl SecretKey {
     /// Generate a random `SecretKey` from the OS's cryptographically secure random number generator
     pub fn generate() -> Self {
-        Self::generate_from_rng(&mut OsRng)
+        Self::generate_from_rng(&mut UnwrapErr(SysRng))
     }
 
     /// Generate a random `SecretKey` from the given cryptographically secure random number generator
-    ///
-    /// The `rng` parameter will change to a rand_core 0.10 type in the next breaking release
-    pub fn generate_from_rng(rng: &mut impl CryptoRngCore) -> Self {
-        // k256 takes rand_core 0.10 RNGs, so sample by rejection here to keep the rand_core 0.6 interface
-        let mut bytes = [0u8; 32];
-        loop {
-            rng.fill_bytes(&mut bytes);
-            if let Ok(sk) = K256SecretKey::from_slice(&bytes) {
-                return Self(sk);
-            }
-        }
+    pub fn generate_from_rng<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+        Self(K256SecretKey::generate_from_rng(rng))
     }
 
     #[deprecated(
@@ -68,7 +61,7 @@ impl SecretKey {
         note = "use `generate` instead. \
         The next breaking release bumps curve libraries, which move to rand_core 0.10, where `OsRng` no longer exists"
     )]
-    pub fn random(rng: &mut OsRng) -> Self {
+    pub fn random<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
         Self::generate_from_rng(rng)
     }
 
@@ -296,7 +289,8 @@ mod known_tests {
 
 #[cfg(test)]
 mod random_tests {
-    use rand_core::OsRng;
+    use getrandom::SysRng;
+    use rand_core::UnwrapErr;
 
     use super::{PublicKey, SecretKey, generate_keypair};
     use crate::{decrypt, encrypt};
@@ -325,34 +319,10 @@ mod random_tests {
     #[test]
     #[allow(deprecated)]
     pub fn test_deprecated_random() {
-        let sk = SecretKey::random(&mut OsRng);
+        let sk = SecretKey::random(&mut UnwrapErr(SysRng));
         let pk = PublicKey::from_secret_key(&sk);
 
         test_enc_dec(&sk.serialize(), &pk.serialize_compressed());
-    }
-
-    #[test]
-    fn test_generate_from_rng_rejects_zero() {
-        use rand_core::CryptoRng;
-        use rand_core::block::{BlockRng, BlockRngCore};
-
-        // yields an all-zero key first, which is invalid, then all ones
-        struct ZeroThenOnes(bool);
-
-        impl BlockRngCore for ZeroThenOnes {
-            type Item = u32;
-            type Results = [u32; 8];
-
-            fn generate(&mut self, results: &mut Self::Results) {
-                results.fill(if self.0 { 0x01010101 } else { 0 });
-                self.0 = true;
-            }
-        }
-
-        impl CryptoRng for ZeroThenOnes {}
-
-        let sk = SecretKey::generate_from_rng(&mut BlockRng::new(ZeroThenOnes(false)));
-        assert_eq!(sk.serialize(), [1u8; 32]);
     }
 
     #[test]
