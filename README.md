@@ -1,7 +1,7 @@
 # eciesrs
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1c6d6ed949dd4836ab97421039e8be75)](https://app.codacy.com/gh/ecies/rs/dashboard)
-[![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs)
+[![License](https://img.shields.io/github/license/ecies/rs.svg)](https://github.com/ecies/rs/blob/master/LICENSE)
 [![Crates](https://img.shields.io/crates/v/ecies)](https://crates.io/crates/ecies)
 [![Recent Downloads](https://img.shields.io/crates/dr/ecies)](https://lib.rs/crates/ecies)
 [![Doc](https://docs.rs/ecies/badge.svg)](https://docs.rs/ecies/latest/ecies/)
@@ -155,7 +155,8 @@ All functionalities are mutually checked among [different languages](https://git
 Following dependencies are audited:
 
 - [k256](https://github.com/RustCrypto/elliptic-curves/tree/master/k256#security-notes)
-- [aes-gcm and chacha20poly1305](https://github.com/RustCrypto/AEADs/tree/master/aes-gcm#security-notes)
+- [aes-gcm](https://github.com/RustCrypto/AEADs/tree/master/aes-gcm#security-notes)
+- [chacha20poly1305](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305#security-notes)
 - [OpenSSL](https://ostif.org/the-ostif-and-quarkslab-audit-of-openssl-is-complete/)
 
 ## Benchmark

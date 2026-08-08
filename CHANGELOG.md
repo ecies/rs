@@ -2,8 +2,12 @@
 
 ## 0.2.12
 
-- Bump dependencies
 - Bump MSRV to 1.85 and edition to 2024
+- Bump dev dependencies
+- Bump hkdf, sha2, aes-gcm and chacha20poly1305
+- Revamp encapsulate and encrypt performance
+- Prepare for the upcoming curve libraries bump (k256, curve25519-dalek, x25519-dalek, ed25519-dalek). Those versions move to rand_core 0.10, where `OsRng` no longer exists (replaced by `getrandom::SysRng`)
+  - Note: to make your code forward-compatible, prefer `utils::generate_keypair()`, or `SecretKey::generate()`/`SecretKey::generate_from_rng(rng)` added in this release
 
 ## 0.2.11
 

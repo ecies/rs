@@ -1,4 +1,4 @@
-use rand_core::OsRng;
+use rand_core::{CryptoRngCore, OsRng};
 
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{PublicKey as K256PublicKey, SecretKey as K256SecretKey};
@@ -52,6 +52,21 @@ impl core::fmt::Debug for SecretKey {
 }
 
 impl SecretKey {
+    /// Generate a random `SecretKey` from the OS's cryptographically secure random number generator
+    pub fn generate() -> Self {
+        Self::generate_from_rng(&mut OsRng)
+    }
+
+    /// Generate a random `SecretKey` from the given cryptographically secure random number generator
+    pub fn generate_from_rng(rng: &mut impl CryptoRngCore) -> Self {
+        Self(K256SecretKey::random(rng))
+    }
+
+    #[deprecated(
+        since = "0.2.12",
+        note = "use `generate` or `generate_from_rng` instead. \
+        The next breaking release bumps curve libraries, which move to rand_core 0.10, where `OsRng` no longer exists"
+    )]
     pub fn random(rng: &mut OsRng) -> Self {
         Self(K256SecretKey::random(rng))
     }
@@ -128,7 +143,7 @@ impl PublicKey {
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let sk = SecretKey::random(&mut OsRng);
+    let sk = SecretKey::generate();
     let pk = PublicKey::from_secret_key(&sk);
     (sk, pk)
 }
@@ -280,12 +295,14 @@ mod known_tests {
 
 #[cfg(test)]
 mod random_tests {
-    use super::generate_keypair;
+    use rand_core::OsRng;
+
+    use super::{PublicKey, SecretKey, generate_keypair};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
     const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
-    const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
+    static BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 
     fn test_enc_dec(sk: &[u8], pk: &[u8]) {
         let msg = MSG.as_bytes();
@@ -301,6 +318,15 @@ mod random_tests {
 
         assert_ne!(sk1, sk2);
         assert_ne!(pk1, pk2);
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    pub fn test_deprecated_random() {
+        let sk = SecretKey::random(&mut OsRng);
+        let pk = PublicKey::from_secret_key(&sk);
+
+        test_enc_dec(&sk.serialize(), &pk.serialize_compressed());
     }
 
     #[test]
@@ -491,6 +517,7 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_random() {
+        super::random_tests::test_deprecated_random();
         super::random_tests::test_compressed_public();
         super::random_tests::test_uncompressed_public();
     }

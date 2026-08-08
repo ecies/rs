@@ -3,10 +3,7 @@ use aes_gcm::{self as cipher, AesGcm, aes::Aes256};
 #[cfg(all(feature = "xchacha20", not(feature = "aes-rust")))]
 use chacha20poly1305::{self as cipher, XChaCha20Poly1305};
 
-use cipher::{
-    KeyInit,
-    aead::{AeadInPlace, generic_array::GenericArray},
-};
+use cipher::aead::{AeadInOut, KeyInit, Nonce, Tag};
 
 #[cfg(all(feature = "aes-rust", feature = "aes-short-nonce"))]
 type Cipher = AesGcm<Aes256, typenum::consts::U12>;
@@ -24,8 +21,7 @@ use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH
 ///
 /// It's basically safe to just `unwrap` the returned `Option<()>`.
 pub fn encrypt(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<()> {
-    let key = GenericArray::from_slice(key);
-    let aead = Cipher::new(key);
+    let aead = Cipher::new_from_slice(key).ok()?;
 
     let base = output.len();
     output.reserve(NONCE_TAG_LENGTH + msg.len());
@@ -33,10 +29,10 @@ pub fn encrypt(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], msg: &[u8]) -> Op
     output.extend([0u8; AEAD_TAG_LENGTH]);
     output.extend(msg);
 
-    let nonce = GenericArray::from_slice(nonce);
-    aead.encrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut output[base + NONCE_TAG_LENGTH..])
+    let nonce = Nonce::<Cipher>::try_from(nonce).ok()?;
+    aead.encrypt_inout_detached(&nonce, &EMPTY_BYTES, (&mut output[base + NONCE_TAG_LENGTH..]).into())
         .map(|tag| {
-            output[base + NONCE_LENGTH..base + NONCE_TAG_LENGTH].copy_from_slice(tag.as_slice());
+            output[base + NONCE_LENGTH..base + NONCE_TAG_LENGTH].copy_from_slice(&tag);
         })
         .ok()
 }
@@ -46,16 +42,15 @@ pub fn decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
     if encrypted.len() < NONCE_TAG_LENGTH {
         return None;
     }
-    let key = GenericArray::from_slice(key);
-    let aead = Cipher::new(key);
+    let aead = Cipher::new_from_slice(key).ok()?;
 
-    let nonce = GenericArray::from_slice(&encrypted[..NONCE_LENGTH]);
-    let tag = GenericArray::from_slice(&encrypted[NONCE_LENGTH..NONCE_TAG_LENGTH]);
+    let nonce = Nonce::<Cipher>::try_from(&encrypted[..NONCE_LENGTH]).ok()?;
+    let tag = Tag::<Cipher>::try_from(&encrypted[NONCE_LENGTH..NONCE_TAG_LENGTH]).ok()?;
 
     let mut out = Vec::with_capacity(encrypted.len() - NONCE_TAG_LENGTH);
     out.extend(&encrypted[NONCE_TAG_LENGTH..]);
 
-    aead.decrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut out, tag)
+    aead.decrypt_inout_detached(&nonce, &EMPTY_BYTES, out.as_mut_slice().into(), &tag)
         .map(|_| out)
         .ok()
 }
