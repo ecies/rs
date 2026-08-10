@@ -23,8 +23,8 @@ mod elliptic;
 mod sync;
 
 use config::{get_ephemeral_key_size, is_ephemeral_key_compressed, is_hkdf_key_compressed};
-use elliptic::{Error, decapsulate, encapsulate, generate_keypair, parse_pk, parse_sk, pk_to_vec};
-use symmetric::{sym_decrypt, sym_encrypt};
+use elliptic::{Error, decapsulate, encapsulate_with_sender, generate_keypair, parse_pk, parse_sk, pk_to_vec};
+use symmetric::{sym_decrypt, sym_encrypt_into};
 
 use crate::compat::Vec;
 pub use elliptic::{PublicKey, SecretKey};
@@ -39,17 +39,10 @@ pub fn encrypt(receiver_pub: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
     let receiver_pk = parse_pk(receiver_pub)?;
     let (ephemeral_sk, ephemeral_pk) = generate_keypair();
 
-    let sym_key = encapsulate(&ephemeral_sk, &receiver_pk, is_hkdf_key_compressed())?;
-    let encrypted = sym_encrypt(&sym_key, msg).ok_or(Error::InvalidMessage)?;
+    let sym_key = encapsulate_with_sender(&ephemeral_sk, &ephemeral_pk, &receiver_pk, is_hkdf_key_compressed())?;
 
-    let is_compressed = is_ephemeral_key_compressed();
-    let key_size = get_ephemeral_key_size();
-
-    let mut cipher_text = Vec::with_capacity(key_size + encrypted.len());
-    let ephemeral_pk = pk_to_vec(&ephemeral_pk, is_compressed);
-
-    cipher_text.extend(&ephemeral_pk);
-    cipher_text.extend(encrypted);
+    let mut cipher_text = pk_to_vec(&ephemeral_pk, is_ephemeral_key_compressed());
+    sym_encrypt_into(&mut cipher_text, &sym_key, msg).ok_or(Error::InvalidMessage)?;
 
     Ok(cipher_text)
 }

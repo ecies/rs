@@ -135,10 +135,19 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 
 /// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
 pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, compressed: bool) -> Result<SharedSecret, Error> {
+    encapsulate_with_sender(sk, &PublicKey::from_secret_key(sk), peer_pk, compressed)
+}
+
+/// Same as [`encapsulate`], but with the sender's public key provided to skip its derivation
+pub(crate) fn encapsulate_with_sender(
+    sk: &SecretKey,
+    sender_pk: &PublicKey,
+    peer_pk: &PublicKey,
+    compressed: bool,
+) -> Result<SharedSecret, Error> {
     let mut shared_point = *peer_pk;
     shared_point.tweak_mul_assign(sk)?;
-    let sender_point = &PublicKey::from_secret_key(sk);
-    Ok(get_shared_secret(sender_point, &shared_point, compressed))
+    Ok(get_shared_secret(sender_pk, &shared_point, compressed))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf

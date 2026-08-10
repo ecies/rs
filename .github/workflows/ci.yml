@@ -92,3 +92,25 @@ jobs:
       - run: cargo build --no-default-features --features aes-rust
       - run: cargo build --no-default-features --features aes-rust,x25519
       - run: cargo build --no-default-features --features aes-rust,ed25519
+
+  semver-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - run: cargo generate-lockfile
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@cargo-semver-checks
+
+      # Check public API compatibility against the latest release on crates.io.
+      # Curve features are mutually exclusive, so each curve is checked separately.
+      - name: Check semver compatibility
+        run: |
+          cargo semver-checks --only-explicit-features --features aes-openssl,std
+          cargo semver-checks --only-explicit-features --features x25519,aes-openssl,std
+          cargo semver-checks --only-explicit-features --features ed25519,aes-openssl,std

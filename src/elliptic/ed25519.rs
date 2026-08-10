@@ -37,10 +37,19 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
 }
 
 /// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, _compressed: bool) -> Result<SharedSecret, Error> {
-    let sender_point = to_public_key(sk).to_bytes();
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, compressed: bool) -> Result<SharedSecret, Error> {
+    encapsulate_with_sender(sk, &to_public_key(sk).to_bytes(), peer_pk, compressed)
+}
+
+/// Same as [`encapsulate`], but with the sender's public key provided to skip its derivation
+pub(crate) fn encapsulate_with_sender(
+    sk: &SecretKey,
+    sender_pk: &PublicKey,
+    peer_pk: &PublicKey,
+    _compressed: bool,
+) -> Result<SharedSecret, Error> {
     let shared_point = multiply(sk, peer_pk)?;
-    Ok(hkdf_derive(&sender_point, shared_point.compress().as_bytes()))
+    Ok(hkdf_derive(sender_pk, shared_point.compress().as_bytes()))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
