@@ -19,12 +19,17 @@ fn criterion_benchmark(c: &mut Criterion) {
     #[cfg(feature = "ed25519")]
     let (sk, pk) = (&sk, &pk);
 
+    let small = &[7u8; 32];
+    let small_encrypted = &encrypt(pk, small).unwrap();
+
     let big = &BIG_MSG;
     let big_encrypted = &encrypt(pk, big).unwrap();
 
     let bigger = &BIGGER_MSG;
     let bigger_encrypted = &encrypt(pk, bigger).unwrap();
 
+    c.bench_function("encrypt 32B", |b| b.iter(|| encrypt(pk, small).unwrap()));
+    c.bench_function("decrypt 32B", |b| b.iter(|| decrypt(sk, small_encrypted).unwrap()));
     c.bench_function("encrypt 100M", |b| b.iter(|| encrypt(pk, big).unwrap()));
     c.bench_function("encrypt 200M", |b| b.iter(|| encrypt(pk, bigger).unwrap()));
     c.bench_function("decrypt 100M", |b| b.iter(|| decrypt(sk, big_encrypted).unwrap()));

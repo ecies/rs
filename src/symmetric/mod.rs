@@ -23,9 +23,16 @@ pub(crate) use hash::hkdf_derive;
 /// For 16 bytes nonce AES-256-GCM and 24 bytes nonce XChaCha20-Poly1305 it's safe.
 /// For 12 bytes nonce AES-256-GCM, the key SHOULD be unique for each message to avoid collisions.
 pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+    let mut output = Vec::new();
+    sym_encrypt_into(&mut output, key, msg)?;
+    Some(output)
+}
+
+/// Symmetric encryption appending the nonce, tag and ciphertext to the provided buffer
+pub(crate) fn sym_encrypt_into(output: &mut Vec<u8>, key: &[u8], msg: &[u8]) -> Option<()> {
     let mut nonce = [0u8; NONCE_LENGTH];
     OsRng.fill_bytes(&mut nonce);
-    encrypt(key, &nonce, msg)
+    encrypt(output, key, &nonce, msg)
 }
 
 /// Symmetric decryption wrapper
@@ -102,7 +109,10 @@ mod tests {
         cipher_text.extend(tag);
         cipher_text.extend(encrypted);
         assert_eq!(msg, &sym_decrypt(key, &cipher_text).unwrap());
-        assert_eq!(cipher_text, encrypt(key, nonce, msg).unwrap());
+
+        let mut encrypted_out = Vec::new();
+        encrypt(&mut encrypted_out, key, nonce, msg).unwrap();
+        assert_eq!(cipher_text, encrypted_out);
     }
 }
 

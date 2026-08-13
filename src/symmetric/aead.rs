@@ -18,24 +18,25 @@ type Cipher = XChaCha20Poly1305;
 use crate::compat::Vec;
 use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH};
 
-/// Pure Rust AES-256-GCM or XChaCha20-Poly1305 encryption wrapper.
+/// Pure Rust AES-256-GCM or XChaCha20-Poly1305 encryption wrapper,
+/// appending the nonce, tag and ciphertext to the provided buffer.
 /// Maximum message size: 64GB (AES) or 256GB (XChaCha20).
 ///
-/// It's basically safe to just `unwrap` the returned `Option<Vec<u8>>`.
-pub fn encrypt(key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
+/// It's basically safe to just `unwrap` the returned `Option<()>`.
+pub fn encrypt(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<()> {
     let key = GenericArray::from_slice(key);
     let aead = Cipher::new(key);
 
-    let mut output = Vec::with_capacity(NONCE_TAG_LENGTH + msg.len());
+    let base = output.len();
+    output.reserve(NONCE_TAG_LENGTH + msg.len());
     output.extend(nonce);
     output.extend([0u8; AEAD_TAG_LENGTH]);
     output.extend(msg);
 
     let nonce = GenericArray::from_slice(nonce);
-    aead.encrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut output[NONCE_TAG_LENGTH..])
+    aead.encrypt_in_place_detached(nonce, &EMPTY_BYTES, &mut output[base + NONCE_TAG_LENGTH..])
         .map(|tag| {
-            output[NONCE_LENGTH..NONCE_TAG_LENGTH].copy_from_slice(tag.as_slice());
-            output
+            output[base + NONCE_LENGTH..base + NONCE_TAG_LENGTH].copy_from_slice(tag.as_slice());
         })
         .ok()
 }
