@@ -6,12 +6,12 @@ use crate::consts::NONCE_LENGTH;
 #[cfg(any(feature = "aes-rust", feature = "xchacha20"))]
 mod aead;
 #[cfg(any(feature = "aes-rust", feature = "xchacha20"))]
-use aead::{decrypt, encrypt};
+use aead::{decrypt, encrypt_into};
 
 #[cfg(feature = "aes-openssl")]
 mod openssl_aes;
 #[cfg(feature = "aes-openssl")]
-use openssl_aes::{decrypt, encrypt};
+use openssl_aes::{decrypt, encrypt_into};
 
 mod hash;
 
@@ -32,7 +32,7 @@ pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 pub(crate) fn sym_encrypt_into(output: &mut Vec<u8>, key: &[u8], msg: &[u8]) -> Option<()> {
     let mut nonce = [0u8; NONCE_LENGTH];
     OsRng.fill_bytes(&mut nonce);
-    encrypt(output, key, &nonce, msg)
+    encrypt_into(output, key, &nonce, msg)
 }
 
 /// Symmetric decryption wrapper
@@ -111,7 +111,7 @@ mod tests {
         assert_eq!(msg, &sym_decrypt(key, &cipher_text).unwrap());
 
         let mut encrypted_out = Vec::new();
-        encrypt(&mut encrypted_out, key, nonce, msg).unwrap();
+        encrypt_into(&mut encrypted_out, key, nonce, msg).unwrap();
         assert_eq!(cipher_text, encrypted_out);
     }
 }
