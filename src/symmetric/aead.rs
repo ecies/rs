@@ -20,14 +20,14 @@ use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH
 /// Maximum message size: 64GB (AES) or 256GB (XChaCha20).
 ///
 /// It's basically safe to just `unwrap` the returned `Option<()>`.
-pub fn encrypt(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], msg: &[u8]) -> Option<()> {
+pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Option<()> {
     let aead = Cipher::new_from_slice(key).ok()?;
 
     let base = output.len();
-    output.reserve(NONCE_TAG_LENGTH + msg.len());
+    output.reserve(NONCE_TAG_LENGTH + plaintext.len());
     output.extend(nonce);
     output.extend([0u8; AEAD_TAG_LENGTH]);
-    output.extend(msg);
+    output.extend(plaintext);
 
     let nonce = Nonce::<Cipher>::try_from(nonce).ok()?;
     aead.encrypt_inout_detached(&nonce, &EMPTY_BYTES, (&mut output[base + NONCE_TAG_LENGTH..]).into())
@@ -38,17 +38,17 @@ pub fn encrypt(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], msg: &[u8]) -> Op
 }
 
 /// Pure Rust AES-256-GCM or XChaCha20-Poly1305 decryption wrapper
-pub fn decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
-    if encrypted.len() < NONCE_TAG_LENGTH {
+pub(super) fn decrypt(key: &[u8], ciphertext: &[u8]) -> Option<Vec<u8>> {
+    if ciphertext.len() < NONCE_TAG_LENGTH {
         return None;
     }
     let aead = Cipher::new_from_slice(key).ok()?;
 
-    let nonce = Nonce::<Cipher>::try_from(&encrypted[..NONCE_LENGTH]).ok()?;
-    let tag = Tag::<Cipher>::try_from(&encrypted[NONCE_LENGTH..NONCE_TAG_LENGTH]).ok()?;
+    let nonce = Nonce::<Cipher>::try_from(&ciphertext[..NONCE_LENGTH]).ok()?;
+    let tag = Tag::<Cipher>::try_from(&ciphertext[NONCE_LENGTH..NONCE_TAG_LENGTH]).ok()?;
 
-    let mut out = Vec::with_capacity(encrypted.len() - NONCE_TAG_LENGTH);
-    out.extend(&encrypted[NONCE_TAG_LENGTH..]);
+    let mut out = Vec::with_capacity(ciphertext.len() - NONCE_TAG_LENGTH);
+    out.extend(&ciphertext[NONCE_TAG_LENGTH..]);
 
     aead.decrypt_inout_detached(&nonce, &EMPTY_BYTES, out.as_mut_slice().into(), &tag)
         .map(|_| out)
