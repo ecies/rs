@@ -29,7 +29,7 @@ k256 = { version = "0.13.4", default-features = false, features = [
 curve25519-dalek = { version = "4.1.3", default-features = false, features = [
   "precomputed-tables",
 ], optional = true }
-x25519-dalek = { version = "2.0.1", default-features = false, features = [
+x25519-dalek = { version = "3.0.0", default-features = false, features = [
   "static_secrets",
 ], optional = true }
 ed25519-dalek = { version = "2.2.0", default-features = false, optional = true } # msrv 1.81
