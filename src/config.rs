@@ -1,5 +1,3 @@
-use once_cell::sync::Lazy;
-
 #[cfg(not(feature = "std"))]
 use crate::sync::RwLock;
 #[cfg(feature = "std")]
@@ -13,9 +11,9 @@ pub struct Config {
 }
 
 /// Global config variable
-pub static ECIES_CONFIG: Lazy<RwLock<Config>> = Lazy::new(|| {
-    let config: Config = Config::default();
-    RwLock::new(config)
+pub static ECIES_CONFIG: RwLock<Config> = RwLock::new(Config {
+    is_ephemeral_key_compressed: false,
+    is_hkdf_key_compressed: false,
 });
 
 /// Update global config
