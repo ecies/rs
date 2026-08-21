@@ -6,6 +6,7 @@
 - Bump dev dependencies
 - Bump hkdf, sha2, aes-gcm and chacha20poly1305
 - Revamp encapsulate and encrypt performance
+- Reject malformed x25519/ed25519 key lengths instead of panicking
 - Prepare for the upcoming curve libraries bump (k256, curve25519-dalek, x25519-dalek, ed25519-dalek). Those versions move to rand_core 0.10, where `OsRng` no longer exists (replaced by `getrandom::SysRng`)
   - Note: to make your code forward-compatible, prefer `utils::generate_keypair()`, or `SecretKey::generate()`/`SecretKey::generate_from_rng(rng)` added in this release
 

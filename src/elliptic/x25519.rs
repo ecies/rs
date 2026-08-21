@@ -3,7 +3,7 @@ use rand_core::OsRng;
 pub use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
 
 use crate::compat::Vec;
-use crate::consts::{SharedSecret, ZERO_SECRET};
+use crate::consts::{PUBLIC_KEY_SIZE, SharedSecret};
 use crate::symmetric::hkdf_derive;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -53,15 +53,13 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, _compressed: bool) -> Re
 
 /// Parse secret key bytes
 pub fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
-    let mut data = ZERO_SECRET;
-    data.copy_from_slice(sk);
+    let data: [u8; PUBLIC_KEY_SIZE] = sk.try_into().map_err(|_| Error::InvalidMessage)?;
     Ok(SecretKey::from(data))
 }
 
 /// Parse public key bytes
 pub fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
-    let mut data = ZERO_SECRET;
-    data.copy_from_slice(pk);
+    let data: [u8; PUBLIC_KEY_SIZE] = pk.try_into().map_err(|_| Error::InvalidMessage)?;
     Ok(PublicKey::from(data))
 }
 
@@ -176,6 +174,16 @@ mod error_tests {
     }
 
     #[test]
+    pub fn rejects_invalid_key_lengths() {
+        let invalid_keys: [&[u8]; 3] = [&[], &[0u8; 31], &[0u8; 33]];
+
+        for key in invalid_keys {
+            assert_eq!(encrypt(key, MSG.as_bytes()), Err(Error::InvalidMessage));
+            assert_eq!(decrypt(key, &[]), Err(Error::InvalidMessage));
+        }
+    }
+
+    #[test]
     pub fn attempts_to_decrypt_with_invalid_key() {
         assert_eq!(decrypt(&ZERO_SECRET, &[]), Err(Error::InvalidMessage));
     }
@@ -221,6 +229,7 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_error() {
+        super::error_tests::rejects_invalid_key_lengths();
         super::error_tests::attempts_to_decrypt_with_invalid_key();
         super::error_tests::attempts_to_decrypt_incorrect_message();
         super::error_tests::attempts_to_decrypt_with_another_key();

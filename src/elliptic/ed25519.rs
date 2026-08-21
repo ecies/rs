@@ -60,16 +60,12 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, _compressed: bool) -> Re
 
 /// Parse secret key bytes
 pub fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
-    let mut ret = ZERO_SECRET;
-    ret.copy_from_slice(sk);
-    Ok(ret)
+    sk.try_into().map_err(|_| Error::InvalidMessage)
 }
 
 /// Parse public key bytes
 pub fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
-    let mut ret = ZERO_SECRET;
-    ret.copy_from_slice(pk);
-    Ok(ret)
+    pk.try_into().map_err(|_| Error::InvalidPublicKey)
 }
 
 /// Public key to bytes
@@ -207,6 +203,16 @@ mod error_tests {
     }
 
     #[test]
+    pub fn rejects_invalid_key_lengths() {
+        let invalid_keys: [&[u8]; 3] = [&[], &[0u8; 31], &[0u8; 33]];
+
+        for key in invalid_keys {
+            assert_eq!(encrypt(key, MSG.as_bytes()), Err(Error::InvalidPublicKey));
+            assert_eq!(decrypt(key, &[]), Err(Error::InvalidMessage));
+        }
+    }
+
+    #[test]
     pub fn attempts_to_decrypt_with_invalid_key() {
         assert_eq!(decrypt(&ZERO_SECRET, &[]), Err(Error::InvalidMessage));
     }
@@ -252,6 +258,7 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_error() {
+        super::error_tests::rejects_invalid_key_lengths();
         super::error_tests::attempts_to_decrypt_with_invalid_key();
         super::error_tests::attempts_to_decrypt_incorrect_message();
         super::error_tests::attempts_to_decrypt_with_another_key();
