@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Upgrade k256 to 0.14
+- Bump MSRV to 1.87
+- Update secp256k1 key generation to rand_core 0.10; remove deprecated `SecretKey::random` and make `generate_from_rng` fallible
+
 ## 0.2.12
 
 - Bump MSRV to 1.85 and edition to 2024

@@ -1,6 +1,4 @@
-use rand_core::{CryptoRngCore, OsRng};
-
-use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::elliptic_curve::{Generate, common::getrandom::SysRng, rand_core::TryCryptoRng, sec1::ToSec1Point};
 use k256::{PublicKey as K256PublicKey, SecretKey as K256SecretKey};
 
 use crate::compat::Vec;
@@ -54,21 +52,12 @@ impl core::fmt::Debug for SecretKey {
 impl SecretKey {
     /// Generate a random `SecretKey` from the OS's cryptographically secure random number generator
     pub fn generate() -> Self {
-        Self::generate_from_rng(&mut OsRng)
+        Self(K256SecretKey::try_generate_from_rng(&mut SysRng).expect("system RNG failed"))
     }
 
     /// Generate a random `SecretKey` from the given cryptographically secure random number generator
-    pub fn generate_from_rng(rng: &mut impl CryptoRngCore) -> Self {
-        Self(K256SecretKey::random(rng))
-    }
-
-    #[deprecated(
-        since = "0.2.12",
-        note = "use `generate` or `generate_from_rng` instead. \
-        The next breaking release bumps curve libraries, which move to rand_core 0.10, where `OsRng` no longer exists"
-    )]
-    pub fn random(rng: &mut OsRng) -> Self {
-        Self(K256SecretKey::random(rng))
+    pub fn generate_from_rng<R: TryCryptoRng>(rng: &mut R) -> Result<Self, R::Error> {
+        K256SecretKey::try_generate_from_rng(rng).map(Self)
     }
 
     pub fn parse_slice(sk: &[u8]) -> Result<Self, Error> {
@@ -121,14 +110,14 @@ impl PublicKey {
     }
 
     pub fn serialize(&self) -> [u8; 65] {
-        let encoded = self.0.to_encoded_point(false);
+        let encoded = self.0.to_sec1_point(false);
         let mut bytes = [0u8; 65];
         bytes.copy_from_slice(encoded.as_bytes());
         bytes
     }
 
     pub fn serialize_compressed(&self) -> [u8; 33] {
-        let encoded = self.0.to_encoded_point(true);
+        let encoded = self.0.to_sec1_point(true);
         let mut bytes = [0u8; 33];
         bytes.copy_from_slice(encoded.as_bytes());
         bytes
@@ -295,9 +284,7 @@ mod known_tests {
 
 #[cfg(test)]
 mod random_tests {
-    use rand_core::OsRng;
-
-    use super::{PublicKey, SecretKey, generate_keypair};
+    use super::{PublicKey, SecretKey, SysRng, generate_keypair};
     use crate::{decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
@@ -321,9 +308,8 @@ mod random_tests {
     }
 
     #[test]
-    #[allow(deprecated)]
-    pub fn test_deprecated_random() {
-        let sk = SecretKey::random(&mut OsRng);
+    pub fn test_generate_from_rng() {
+        let sk = SecretKey::generate_from_rng(&mut SysRng).unwrap();
         let pk = PublicKey::from_secret_key(&sk);
 
         test_enc_dec(&sk.serialize(), &pk.serialize_compressed());
@@ -517,7 +503,7 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_random() {
-        super::random_tests::test_deprecated_random();
+        super::random_tests::test_generate_from_rng();
         super::random_tests::test_compressed_public();
         super::random_tests::test_uncompressed_public();
     }
