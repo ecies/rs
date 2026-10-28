@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -35,6 +35,17 @@ jobs:
       - run: cargo generate-lockfile
 
       - uses: Swatinem/rust-cache@v2
+
+      # vcpkg builds OpenSSL from source, so cache its binary archives per runner image, which pins the compiler and ports
+      - name: Get vcpkg cache key on Windows
+        run: echo "VCPKG_CACHE_KEY=vcpkg-openssl-$env:ImageOS-$env:ImageVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
+        if: matrix.os == 'windows-latest'
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/AppData/Local/vcpkg/archives
+          key: ${{ env.VCPKG_CACHE_KEY }}
+        if: matrix.os == 'windows-latest'
 
       - name: Install OpenSSL on Windows
         run: |
@@ -54,7 +65,7 @@ jobs:
       - name: Check doc
         run: cargo doc --no-deps
 
-      - run: cargo install wasm-bindgen-cli || true
+      - uses: taiki-e/install-action@wasm-bindgen
 
       - name: Test
         run: sh ./scripts/test-all.sh
