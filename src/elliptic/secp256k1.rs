@@ -58,13 +58,15 @@ impl SecretKey {
     }
 
     /// Generate a random `SecretKey` from the given cryptographically secure random number generator
+    ///
+    /// The `rng` parameter will change to a rand_core 0.10 type in the next breaking release
     pub fn generate_from_rng(rng: &mut impl CryptoRngCore) -> Self {
         Self(K256SecretKey::random(rng))
     }
 
     #[deprecated(
         since = "0.2.12",
-        note = "use `generate` or `generate_from_rng` instead. \
+        note = "use `generate` instead. \
         The next breaking release bumps curve libraries, which move to rand_core 0.10, where `OsRng` no longer exists"
     )]
     pub fn random(rng: &mut OsRng) -> Self {
