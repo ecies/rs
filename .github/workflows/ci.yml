@@ -48,7 +48,7 @@ jobs:
           FILE_NAME: nasm-2.16.01-win64.zip
 
       - name: Format
-        run: cargo fmt
+        run: cargo fmt --check
       - name: Check and run lint
         run: sh ./scripts/check-all.sh
       - name: Check doc
