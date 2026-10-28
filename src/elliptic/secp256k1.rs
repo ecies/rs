@@ -1,6 +1,6 @@
 use rand_core::{CryptoRngCore, OsRng};
 
-use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::elliptic_curve::sec1::ToSec1Point;
 use k256::{PublicKey as K256PublicKey, SecretKey as K256SecretKey};
 
 use crate::compat::Vec;
@@ -61,7 +61,14 @@ impl SecretKey {
     ///
     /// The `rng` parameter will change to a rand_core 0.10 type in the next breaking release
     pub fn generate_from_rng(rng: &mut impl CryptoRngCore) -> Self {
-        Self(K256SecretKey::random(rng))
+        // k256 takes rand_core 0.10 RNGs, so sample by rejection here to keep the rand_core 0.6 interface
+        let mut bytes = [0u8; 32];
+        loop {
+            rng.fill_bytes(&mut bytes);
+            if let Ok(sk) = K256SecretKey::from_slice(&bytes) {
+                return Self(sk);
+            }
+        }
     }
 
     #[deprecated(
@@ -70,7 +77,7 @@ impl SecretKey {
         The next breaking release bumps curve libraries, which move to rand_core 0.10, where `OsRng` no longer exists"
     )]
     pub fn random(rng: &mut OsRng) -> Self {
-        Self(K256SecretKey::random(rng))
+        Self::generate_from_rng(rng)
     }
 
     pub fn parse_slice(sk: &[u8]) -> Result<Self, Error> {
@@ -123,14 +130,14 @@ impl PublicKey {
     }
 
     pub fn serialize(&self) -> [u8; 65] {
-        let encoded = self.0.to_encoded_point(false);
+        let encoded = self.0.to_sec1_point(false);
         let mut bytes = [0u8; 65];
         bytes.copy_from_slice(encoded.as_bytes());
         bytes
     }
 
     pub fn serialize_compressed(&self) -> [u8; 33] {
-        let encoded = self.0.to_encoded_point(true);
+        let encoded = self.0.to_sec1_point(true);
         let mut bytes = [0u8; 33];
         bytes.copy_from_slice(encoded.as_bytes());
         bytes
@@ -329,6 +336,30 @@ mod random_tests {
         let pk = PublicKey::from_secret_key(&sk);
 
         test_enc_dec(&sk.serialize(), &pk.serialize_compressed());
+    }
+
+    #[test]
+    fn test_generate_from_rng_rejects_zero() {
+        use rand_core::CryptoRng;
+        use rand_core::block::{BlockRng, BlockRngCore};
+
+        // yields an all-zero key first, which is invalid, then all ones
+        struct ZeroThenOnes(bool);
+
+        impl BlockRngCore for ZeroThenOnes {
+            type Item = u32;
+            type Results = [u32; 8];
+
+            fn generate(&mut self, results: &mut Self::Results) {
+                results.fill(if self.0 { 0x01010101 } else { 0 });
+                self.0 = true;
+            }
+        }
+
+        impl CryptoRng for ZeroThenOnes {}
+
+        let sk = SecretKey::generate_from_rng(&mut BlockRng::new(ZeroThenOnes(false)));
+        assert_eq!(sk.serialize(), [1u8; 32]);
     }
 
     #[test]

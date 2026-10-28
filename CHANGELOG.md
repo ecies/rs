@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.13
+
+- Bump k256 to 0.14 to fix [RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html) from crypto-bigint, without changing the public interface
+- Bump MSRV to 1.87 per crypto-bigint (1.87) and elliptic-curve (1.87)
+
 ## 0.2.12
 
 - Bump MSRV to 1.85 and edition to 2024

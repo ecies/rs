@@ -1,11 +1,11 @@
 [package]
 name = "ecies"
-version = "0.2.12"
+version = "0.2.13"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 keywords = [ # at most five
   "secp256k1",
   "x25519",
@@ -22,7 +22,7 @@ repository = "https://github.com/ecies/rs"
 
 [dependencies]
 # elliptic curves
-k256 = { version = "0.13.4", default-features = false, features = [
+k256 = { version = "0.14.0", default-features = false, features = [
   "arithmetic",
   "critical-section",
 ] }
