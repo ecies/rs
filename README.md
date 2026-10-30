@@ -87,48 +87,54 @@ For compatibility, make sure different applications share the same configuration
 You can choose to use OpenSSL implementation or [pure Rust implementation](https://github.com/RustCrypto/AEADs) of AES-256-GCM:
 
 ```toml
-ecies = {version = "0.2", default-features = false, features = ["aes-rust"]}
+ecies = {version = "0.2", default-features = false, features = ["secp256k1", "aes-rust"]}
 ```
+
+With `default-features = false`, name the curve feature too, such as `secp256k1` above. The `secp256k1` feature has no effect in 0.2, but from 0.3 it controls whether secp256k1 is built, so builds that leave it out will not include secp256k1.
 
 Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
 
 Pure Rust implementation is sometimes useful, such as building on WASM:
 
 ```bash
-cargo build --no-default-features --features aes-rust --target=wasm32-unknown-unknown
+cargo build --no-default-features --features secp256k1,aes-rust --target=wasm32-unknown-unknown
 ```
 
 #### Build on x86 CPUs
 
-If you select the pure Rust backend on modern x86 CPUs, consider building with
+For ecies 0.2.1 and earlier: if you select the pure Rust backend on modern x86 CPUs, consider building with
 
 ```bash
 RUSTFLAGS="-Ctarget-cpu=sandybridge -Ctarget-feature=+aes,+sse2,+sse4.1,+ssse3"
 ```
 
-It can speed up AES encryption/decryption. This would be no longer necessary when [`aes-gcm` supports automatic CPU detection](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
+It can speed up AES encryption/decryption. Since ecies 0.2.2, this is no longer necessary, because [`aes-gcm` detects CPU features automatically](https://github.com/RustCrypto/AEADs/issues/243#issuecomment-738821935).
 
 #### Build on ARM CPUs
 
-On ARM CPUs (like Apple), consider building with
+For ecies 0.2.3 to 0.2.11, on ARM CPUs (like Apple), consider building with
 
 ```bash
 RUSTFLAGS="--cfg aes_armv8"
 ```
+
+Since ecies 0.2.12, ARMv8 AES instructions are used automatically.
 
 ### Optional pure Rust XChaCha20-Poly1305 backend
 
 You can also enable a pure Rust [XChaCha20-Poly1305](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305) backend.
 
 ```toml
-ecies = {version = "0.2", default-features = false, features = ["xchacha20"]}
+ecies = {version = "0.2", default-features = false, features = ["secp256k1", "xchacha20"]}
 ```
 
-On ARM CPUs, enable SIMD with
+For ecies 0.2.11 and earlier, enable SIMD on ARM CPUs with
 
 ```bash
 RUSTFLAGS="--cfg chacha20_force_neon"
 ```
+
+Since ecies 0.2.12, NEON is used automatically.
 
 ## WASM compatibility
 
@@ -161,61 +167,76 @@ Following dependencies are audited:
 
 ## Benchmark
 
-On Mac mini M4 Pro (24 GB) on Apr 2, 2025, secp256k1 only.
+On Mac mini M4 Pro (24 GB) on Oct 30, 2026, secp256k1 only.
 
-Rust version: 1.85.0 (4d91de4e4 2025-02-17)
+Rust version: 1.87.0 (17067e9ac 2025-05-09)
 
 ### AES backend (OpenSSL)
 
 ```bash
 $ cargo bench --no-default-features --features aes-openssl
 
-encrypt 100M            time:   [29.237 ms 29.827 ms 30.628 ms]
-Found 2 outliers among 10 measurements (20.00%)
+encrypt 32B             time:   [43.610 µs 44.109 µs 44.860 µs]
+
+decrypt 32B             time:   [27.540 µs 27.879 µs 28.184 µs]
+Found 1 outliers among 10 measurements (10.00%)
   1 (10.00%) low mild
-  1 (10.00%) high mild
 
-encrypt 200M            time:   [86.005 ms 88.055 ms 89.282 ms]
+encrypt 100M            time:   [12.529 ms 12.636 ms 12.748 ms]
 
-decrypt 100M            time:   [17.222 ms 17.568 ms 17.977 ms]
+encrypt 200M            time:   [24.703 ms 24.812 ms 24.994 ms]
 Found 1 outliers among 10 measurements (10.00%)
   1 (10.00%) high mild
 
-decrypt 200M            time:   [38.884 ms 39.324 ms 39.693 ms]
+decrypt 100M            time:   [12.268 ms 12.452 ms 12.721 ms]
+
+decrypt 200M            time:   [24.102 ms 24.624 ms 25.574 ms]
 Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high mild
+  1 (10.00%) high severe
 ```
 
 ### AES backend (Pure Rust)
 
 ```bash
-$ export RUSTFLAGS="--cfg aes_armv8"
 $ cargo bench --no-default-features --features aes-rust
 
-encrypt 100M            time:   [120.40 ms 122.63 ms 127.09 ms]
+encrypt 32B             time:   [43.516 µs 44.269 µs 44.745 µs]
+
+decrypt 32B             time:   [28.463 µs 28.885 µs 29.119 µs]
+
+encrypt 100M            time:   [25.836 ms 26.286 ms 26.635 ms]
+
+encrypt 200M            time:   [51.666 ms 52.654 ms 53.652 ms]
+
+decrypt 100M            time:   [25.191 ms 25.443 ms 25.796 ms]
+
+decrypt 200M            time:   [51.772 ms 52.944 ms 53.901 ms]
 Found 1 outliers among 10 measurements (10.00%)
-  1 (10.00%) high severe
-
-encrypt 200M            time:   [253.86 ms 256.43 ms 258.01 ms]
-
-decrypt 100M            time:   [113.73 ms 114.05 ms 114.39 ms]
-
-decrypt 200M            time:   [236.41 ms 237.82 ms 239.12 ms]
+  1 (10.00%) high mild
 ```
 
 ### XChaCha20 backend
 
 ```bash
-$ export RUSTFLAGS="--cfg chacha20_force_neon"
 $ cargo bench --no-default-features --features xchacha20
 
-encrypt 100M            time:   [120.24 ms 120.98 ms 121.63 ms]
+encrypt 32B             time:   [45.041 µs 45.650 µs 46.246 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
 
-encrypt 200M            time:   [257.24 ms 261.22 ms 264.06 ms]
+decrypt 32B             time:   [28.111 µs 28.628 µs 29.112 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) low mild
 
-decrypt 100M            time:   [114.39 ms 114.94 ms 116.03 ms]
+encrypt 100M            time:   [108.56 ms 108.94 ms 109.68 ms]
+Found 2 outliers among 10 measurements (20.00%)
+  2 (20.00%) high mild
 
-decrypt 200M            time:   [238.09 ms 240.60 ms 242.55 ms]
+encrypt 200M            time:   [217.71 ms 218.86 ms 219.70 ms]
+
+decrypt 100M            time:   [108.94 ms 109.84 ms 110.39 ms]
+
+decrypt 200M            time:   [215.22 ms 219.89 ms 226.11 ms]
 ```
 
 ## Changelog
