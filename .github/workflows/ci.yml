@@ -65,7 +65,14 @@ jobs:
       - name: Check doc
         run: cargo doc --no-deps
 
-      - uses: taiki-e/install-action@wasm-bindgen
+      # wasm-bindgen-test-runner must match the locked wasm-bindgen exactly; versions missing from install-action's manifest fall back to cargo-binstall
+      - name: Get wasm-bindgen version
+        run: echo "WASM_BINDGEN_VERSION=$(cargo pkgid wasm-bindgen | cut -d@ -f2)" >> "$GITHUB_ENV"
+        shell: bash
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@${{ env.WASM_BINDGEN_VERSION }}
 
       - name: Test
         run: sh ./scripts/test-all.sh
