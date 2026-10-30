@@ -1,6 +1,6 @@
 [package]
 name = "ecies"
-version = "0.2.13"
+version = "0.2.14"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"

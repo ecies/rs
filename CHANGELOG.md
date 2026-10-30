@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.14
+
+- Stop printing secp256k1 `SecretKey` bytes in `Debug`, and compare secret keys in constant time
+
 ## 0.2.13
 
 - Bump k256 to 0.14 to fix [RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html) from crypto-bigint, without changing the public interface
