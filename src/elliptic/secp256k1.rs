@@ -33,21 +33,13 @@ impl core::fmt::Display for Error {
 #[cfg(feature = "std")]
 impl std::error::Error for Error {}
 
-#[derive(Clone)]
+// k256 compares secret keys in constant time
+#[derive(Clone, Eq, PartialEq)]
 pub struct SecretKey(K256SecretKey);
-
-impl PartialEq for SecretKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.to_bytes() == other.0.to_bytes()
-    }
-}
-
-impl Eq for SecretKey {}
 
 impl core::fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let bytes: [u8; 32] = self.0.to_bytes().into();
-        f.debug_tuple("SecretKey").field(&bytes).finish()
+        f.debug_tuple("SecretKey").finish_non_exhaustive()
     }
 }
 
@@ -325,6 +317,7 @@ mod random_tests {
         let (sk1, pk1) = generate_keypair();
         let (sk2, pk2) = generate_keypair();
 
+        assert_eq!(sk1, sk1.clone());
         assert_ne!(sk1, sk2);
         assert_ne!(pk1, pk2);
     }
@@ -454,8 +447,7 @@ mod error_tests {
     #[test]
     fn test_secret_key_debug() {
         let (sk, _) = generate_keypair();
-        let debug = format!("{:?}", sk);
-        assert!(debug.starts_with("SecretKey("));
+        assert_eq!(format!("{:?}", sk), "SecretKey(..)");
     }
 
     #[test]
