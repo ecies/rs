@@ -26,7 +26,7 @@ k256 = { version = "0.14.0", default-features = false, features = [
   "arithmetic",
   "critical-section",
 ] }
-curve25519-dalek = { version = "4.1.3", default-features = false, features = [
+curve25519-dalek = { version = "5.0.0", default-features = false, features = [
   "precomputed-tables",
 ], optional = true }
 x25519-dalek = { version = "2.0.1", default-features = false, features = [
