@@ -1,7 +1,15 @@
-use openssl::symm::{Cipher, Crypter, Mode, decrypt_aead};
+use openssl::symm::{Cipher, Crypter, Mode};
+
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+#[cfg(feature = "std")]
+use std::vec;
 
 use crate::Vec;
-use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH};
+use crate::consts::{AEAD_TAG_LENGTH, NONCE_LENGTH, NONCE_TAG_LENGTH};
+
+/// rust-openssl panics on more than `i32::MAX` bytes in one call, so longer messages go through in chunks
+const CHUNK_LENGTH: usize = 1 << 30;
 
 /// AES-256-GCM encryption wrapper, appending the nonce, tag and ciphertext to the provided buffer
 pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Option<()> {
@@ -18,7 +26,7 @@ pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plain
     output.resize(encrypted_start + plaintext.len() + block_size, 0);
 
     let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(nonce)).ok()?;
-    let mut count = crypter.update(plaintext, &mut output[encrypted_start..]).ok()?;
+    let mut count = update_all(&mut crypter, plaintext, &mut output[encrypted_start..])?;
     count += crypter.finalize(&mut output[encrypted_start + count..]).ok()?;
     output.truncate(encrypted_start + count);
 
@@ -38,5 +46,22 @@ pub(super) fn decrypt(key: &[u8], ciphertext: &[u8]) -> Option<Vec<u8>> {
     let nonce = &ciphertext[..NONCE_LENGTH];
     let tag = &ciphertext[NONCE_LENGTH..NONCE_TAG_LENGTH];
     let ciphertext = &ciphertext[NONCE_TAG_LENGTH..];
-    decrypt_aead(cipher, key, Some(nonce), &EMPTY_BYTES, ciphertext, tag).ok()
+
+    // what `decrypt_aead` does, but in chunks: the tag goes in after the data, and finalizing checks it
+    let mut crypter = Crypter::new(cipher, Mode::Decrypt, key, Some(nonce)).ok()?;
+    let mut plaintext = vec![0u8; ciphertext.len() + cipher.block_size()];
+    let mut count = update_all(&mut crypter, ciphertext, &mut plaintext)?;
+    crypter.set_tag(tag).ok()?;
+    count += crypter.finalize(&mut plaintext[count..]).ok()?;
+    plaintext.truncate(count);
+    Some(plaintext)
+}
+
+/// Feeds `input` through the cipher in chunks, returning how many bytes it wrote to `output`
+fn update_all(crypter: &mut Crypter, input: &[u8], output: &mut [u8]) -> Option<usize> {
+    let mut count = 0;
+    for chunk in input.chunks(CHUNK_LENGTH) {
+        count += crypter.update(chunk, &mut output[count..]).ok()?;
+    }
+    Some(count)
 }

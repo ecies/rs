@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.15
+
+- Fix the OpenSSL AES backend (`aes-openssl`, the default) panicking on messages over 2 GiB, in both `encrypt` and `decrypt` ([#174](https://github.com/ecies/rs/issues/174))
+
 ## 0.2.14
 
 - Stop printing secp256k1 `SecretKey` bytes in `Debug`, and compare secret keys in constant time
