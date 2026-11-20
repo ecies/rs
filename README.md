@@ -241,4 +241,4 @@ decrypt 200M            time:   [215.22 ms 219.89 ms 226.11 ms]
 
 ## Changelog
 
-See [CHANGELOG.md](./CHANGELOG.md).
+See [CHANGELOG.md](https://github.com/ecies/rs/blob/master/CHANGELOG.md).
