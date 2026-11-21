@@ -10,6 +10,11 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # id-token lets crates-io-auth-action trade a GitHub OIDC token for a crates.io token that lasts
+    # 30 minutes and is revoked when the job ends
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
@@ -26,7 +31,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # Trusted Publishing: crates.io trusts this repository's cd.yml, so no stored token is needed
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
       - name: Publish cargo package
-        run: cargo login $CARGO_LOGIN_TOKEN && cargo publish
+        run: cargo publish
         env:
-          CARGO_LOGIN_TOKEN: ${{ secrets.CARGO_LOGIN_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
