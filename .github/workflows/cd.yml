@@ -2,7 +2,8 @@ name: CD
 
 on:
   release:
-    types: [published]
+    # a full release, or a pre-release promoted to one. `published` would skip the promotion
+    types: [released]
 
 env:
   CARGO_TERM_COLOR: always
