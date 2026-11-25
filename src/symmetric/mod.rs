@@ -28,7 +28,7 @@ pub fn sym_encrypt(key: &[u8], msg: &[u8]) -> Option<Vec<u8>> {
 
 /// Encrypt `msg` with a random nonce and authenticate `aad`. Pass the same `aad` to [`sym_decrypt_with_aad`].
 /// With `aes-short-nonce`, use a fresh key for each AES-GCM message. See [`sym_encrypt`] for nonce sizes.
-pub fn sym_encrypt_with_aad(key: &[u8], msg: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn sym_encrypt_with_aad(key: &[u8], msg: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
     let mut output = Vec::new();
     sym_encrypt_into(&mut output, key, msg, aad)?;
     Some(output)
@@ -47,7 +47,7 @@ pub fn sym_decrypt(key: &[u8], encrypted: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// Decrypt with the AAD you passed to [`sym_encrypt_with_aad`]. Returns `None` if it doesn't match.
-pub fn sym_decrypt_with_aad(key: &[u8], encrypted: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn sym_decrypt_with_aad(key: &[u8], encrypted: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
     decrypt(key, encrypted, aad)
 }
 

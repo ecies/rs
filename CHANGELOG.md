@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.16
+
+- Reject small-order x25519 and ed25519 public keys, and mixed-order ed25519 keys, in `encrypt`, `decrypt`, `encapsulate` and `decapsulate`. With a small-order key the shared point is predictable, so anyone could decrypt a message sent to such a key, and a forged message carrying one as its ephemeral key decrypted under every secret key ([#180](https://github.com/ecies/rs/issues/180))
+- Add `encrypt_with_config` and `decrypt_with_config`, which take additional authenticated data (AAD) and a `Config` instead of reading the global config. The AAD support comes from [#159](https://github.com/ecies/rs/pull/159) by beardedeagle
+- Add `Config::DEFAULT` and `Config::ephemeral_key_size()`, and derive `Clone`, `Debug`, `PartialEq`, `Eq` and `Hash` for `Config`
+- Deprecate the global config: `ECIES_CONFIG`, `update_config`, `reset_config`, `is_ephemeral_key_compressed`, `is_hkdf_key_compressed` and `get_ephemeral_key_size`. 0.3 removes them ([#178](https://github.com/ecies/rs/issues/178))
+- Announce 0.3's feature changes: the `x25519`, `ed25519`, `xchacha20`, `aes-short-nonce` and `aes-12bytes-nonce` features will fail the build with a message naming the replacement `Config` field, and X25519 and Ed25519 move behind one `curve25519` feature. The backend aliases `openssl` and `pure` are removed. Pure Rust becomes the default AES backend; enable `aes-openssl` to keep OpenSSL ([#178](https://github.com/ecies/rs/issues/178))
+- `encrypt` and `decrypt` read the global config once per call, so a concurrent `update_config` can no longer mix the two flags
+- Go back to curve25519-dalek 4.1.3, the version x25519-dalek 2 and ed25519-dalek 2 use, so x25519 and ed25519 builds compile one copy instead of two. 0.2.15 had moved to 5.0.0 in [#173](https://github.com/ecies/rs/pull/173)
+- Document enabling `std` on targets with the standard library: outside wasm32, binaries fail to link without it unless another dependency enables `once_cell/std` or provides a `critical-section` implementation
+
 ## 0.2.15
 
 - Fix the OpenSSL AES backend (`aes-openssl`, the default) panicking on messages over 2 GiB, in both `encrypt` and `decrypt` ([#174](https://github.com/ecies/rs/issues/174))

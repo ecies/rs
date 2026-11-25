@@ -273,6 +273,41 @@ mod known_tests {
         assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 
+    /// Encrypted by eciesjs 0.5.0 for the key in `test_known_encrypted`, one payload per compression flag combination
+    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
+    #[test]
+    pub fn test_known_encrypted_compressed() {
+        use crate::{config::Config, decrypt_with_config};
+
+        let sk = decode_hex("e520872701d9ec44dbac2eab85512ad14ad0c42e01de56d7b528abd8524fcb47");
+        let payloads = [
+            (
+                true,
+                false,
+                "033d8169d62165331372322220d5694d4c8724cb77ccdfe0015eff7cf2200e5da0a202dced4f1be2cc2347d389c7102f3b51d6aac132f00b3bd172446143b1eae4db1e37a44eadbffb79fe54a39d00e3",
+            ),
+            (
+                false,
+                true,
+                "042f32d10c2a39650fc60581baa1eb8b1c60aac137c4a2885a3d4fe79849097538e658c804fda8597c7bb34ebdaba286989dd82b2be532cd0eb3ec2d8315d0f5b7409466dc590c15957ccee05521ada78ea3f8160cb431cd1bdae0c6348877a33744e876b2b93ac12189b0b45966da26",
+            ),
+            (
+                true,
+                true,
+                "02cf035041ce8c45ca75dceef196ac9cbaae38311a6344d3fec64d84a7e92ce7a68903437a621dda249a854c8e19dd1bbf7f888c77db80f2ff9cdf18f0e40b1721aace6e299ca8b54062e56c0b02504d",
+            ),
+        ];
+
+        for (is_ephemeral_key_compressed, is_hkdf_key_compressed, encrypted) in payloads {
+            let config = Config {
+                is_ephemeral_key_compressed,
+                is_hkdf_key_compressed,
+            };
+            let decrypted = decrypt_with_config(&sk, &decode_hex(encrypted), &[], &config).unwrap();
+            assert_eq!(decrypted, "hello world🌍".as_bytes());
+        }
+    }
+
     #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
     #[test]
     pub fn test_known_encrypted_short_nonce() {
@@ -474,16 +509,132 @@ mod error_tests {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod config_tests {
     use super::generate_keypair;
 
-    use crate::config::{Config, reset_config, update_config};
-    use crate::{Error, decrypt, encrypt};
+    use crate::config::{
+        Config, get_ephemeral_key_size, is_ephemeral_key_compressed, is_hkdf_key_compressed, reset_config,
+        update_config,
+    };
+    use crate::consts::{COMPRESSED_PUBLIC_KEY_SIZE, NONCE_TAG_LENGTH, UNCOMPRESSED_PUBLIC_KEY_SIZE};
+    use crate::{Error, decrypt, decrypt_with_config, encrypt, encrypt_with_config};
 
     const MSG: &str = "helloworld🌍";
+    const COMPRESSED: Config = Config {
+        is_ephemeral_key_compressed: true,
+        is_hkdf_key_compressed: true,
+    };
+
+    /// Resets the global config when dropped, so a test that fails partway doesn't leave it changed for the others
+    struct ResetConfig;
+
+    impl Drop for ResetConfig {
+        fn drop(&mut self) {
+            reset_config();
+        }
+    }
+
+    #[test]
+    pub fn test_ephemeral_key_size() {
+        assert_eq!(Config::DEFAULT, Config::default());
+        assert_eq!(Config::DEFAULT.ephemeral_key_size(), UNCOMPRESSED_PUBLIC_KEY_SIZE);
+        assert_eq!(COMPRESSED.ephemeral_key_size(), COMPRESSED_PUBLIC_KEY_SIZE);
+    }
+
+    #[test]
+    pub fn test_config_flags() {
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize());
+
+        for config in [
+            Config::DEFAULT,
+            Config {
+                is_ephemeral_key_compressed: true,
+                ..Config::DEFAULT
+            },
+            Config {
+                is_hkdf_key_compressed: true,
+                ..Config::DEFAULT
+            },
+            COMPRESSED,
+        ] {
+            let encrypted = encrypt_with_config(pk, MSG.as_bytes(), &[], &config).unwrap();
+            assert_eq!(
+                encrypted.len(),
+                config.ephemeral_key_size() + NONCE_TAG_LENGTH + MSG.len()
+            );
+            assert_eq!(
+                decrypt_with_config(sk, &encrypted, &[], &config).unwrap(),
+                MSG.as_bytes()
+            );
+        }
+
+        // a different hkdf flag derives a different key
+        let encrypted = encrypt_with_config(pk, MSG.as_bytes(), &[], &COMPRESSED).unwrap();
+        let ephemeral_only = Config {
+            is_ephemeral_key_compressed: true,
+            ..Config::DEFAULT
+        };
+        assert_eq!(
+            decrypt_with_config(sk, &encrypted, &[], &ephemeral_only),
+            Err(Error::InvalidMessage)
+        );
+    }
+
+    #[test]
+    pub fn test_global_getters() {
+        let _reset = ResetConfig;
+
+        update_config(Config {
+            is_ephemeral_key_compressed: true,
+            ..Config::DEFAULT
+        });
+        assert!(is_ephemeral_key_compressed());
+        assert!(!is_hkdf_key_compressed());
+
+        update_config(Config {
+            is_hkdf_key_compressed: true,
+            ..Config::DEFAULT
+        });
+        assert!(!is_ephemeral_key_compressed());
+        assert!(is_hkdf_key_compressed());
+    }
+
+    #[test]
+    pub fn test_config_ignores_global() {
+        let _reset = ResetConfig;
+        let (sk, pk) = generate_keypair();
+        let (sk, pk) = (&sk.serialize(), &pk.serialize());
+
+        update_config(COMPRESSED);
+        assert_eq!(get_ephemeral_key_size(), COMPRESSED_PUBLIC_KEY_SIZE);
+
+        let encrypted = encrypt_with_config(pk, MSG.as_bytes(), &[], &Config::DEFAULT).unwrap();
+        assert_eq!(
+            encrypted.len(),
+            UNCOMPRESSED_PUBLIC_KEY_SIZE + NONCE_TAG_LENGTH + MSG.len()
+        );
+        assert_eq!(
+            decrypt_with_config(sk, &encrypted, &[], &Config::DEFAULT).unwrap(),
+            MSG.as_bytes()
+        );
+        assert!(decrypt(sk, &encrypted).is_err());
+
+        // encrypt and decrypt use the global config as a whole
+        let encrypted = encrypt(pk, MSG.as_bytes()).unwrap();
+        assert_eq!(
+            decrypt_with_config(sk, &encrypted, &[], &COMPRESSED).unwrap(),
+            MSG.as_bytes()
+        );
+
+        reset_config();
+        assert_eq!(get_ephemeral_key_size(), UNCOMPRESSED_PUBLIC_KEY_SIZE);
+    }
 
     #[test]
     pub fn test_hkdf_key_config() {
+        let _reset = ResetConfig;
         let (sk, pk) = generate_keypair();
         let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
 
@@ -501,6 +652,7 @@ mod config_tests {
 
     #[test]
     pub fn test_ephemeral_key_config() {
+        let _reset = ResetConfig;
         let (sk, pk) = generate_keypair();
         let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
         let encrypted_1 = encrypt(pk, MSG.as_bytes()).unwrap();
@@ -528,6 +680,8 @@ mod wasm_tests {
         super::known_tests::test_known_shared_secret();
         #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
         super::known_tests::test_known_encrypted();
+        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
+        super::known_tests::test_known_encrypted_compressed();
         #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
         super::known_tests::test_known_encrypted_short_nonce();
         #[cfg(feature = "xchacha20")]
@@ -536,6 +690,10 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn test_config() {
+        super::config_tests::test_ephemeral_key_size();
+        super::config_tests::test_config_flags();
+        super::config_tests::test_global_getters();
+        super::config_tests::test_config_ignores_global();
         super::config_tests::test_hkdf_key_config();
         super::config_tests::test_ephemeral_key_config();
     }
