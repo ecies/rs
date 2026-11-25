@@ -317,6 +317,7 @@ mod known_tests {
 
 #[cfg(test)]
 mod random_tests {
+    use rand_core::utils::{fill_bytes_via_next_word, next_u64_via_u32};
     use rand_core::{Infallible, TryCryptoRng, TryRng};
 
     use super::{SecretKey, generate_keypair};
@@ -343,29 +344,25 @@ mod random_tests {
         assert_ne!(pk1, pk2);
     }
 
-    /// Hands out a fixed byte stream, so a test can pin which key an RNG's output makes
+    /// Hands out a fixed byte stream, so a test can pin which key an RNG's output makes. Fills go through the word
+    /// methods, little-endian, so the bytes come out in stream order and every method runs
     struct FixedRng<'a>(&'a [u8]);
 
     impl TryRng for FixedRng<'_> {
         type Error = Infallible;
 
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            let mut bytes = [0u8; 4];
-            self.try_fill_bytes(&mut bytes)?;
-            Ok(u32::from_le_bytes(bytes))
+            let (word, rest) = self.0.split_first_chunk().expect("the stream ran out");
+            self.0 = rest;
+            Ok(u32::from_le_bytes(*word))
         }
 
         fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            let mut bytes = [0u8; 8];
-            self.try_fill_bytes(&mut bytes)?;
-            Ok(u64::from_le_bytes(bytes))
+            next_u64_via_u32(self)
         }
 
         fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-            let (head, rest) = self.0.split_at(dst.len());
-            dst.copy_from_slice(head);
-            self.0 = rest;
-            Ok(())
+            fill_bytes_via_next_word(dst, || self.try_next_u64())
         }
     }
 
