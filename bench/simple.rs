@@ -8,7 +8,13 @@ const BIG_MSG: [u8; BIG_MSG_SIZE] = [1u8; BIG_MSG_SIZE];
 const BIGGER_MSG: [u8; BIGGER_MSG_SIZE] = [2u8; BIGGER_MSG_SIZE];
 
 fn criterion_benchmark(c: &mut Criterion) {
-    use ecies::{decrypt, encrypt, utils::generate_keypair};
+    #[cfg(feature = "ed25519")]
+    use ecies::ed25519::generate_keypair;
+    #[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
+    use ecies::secp256k1::generate_keypair;
+    #[cfg(feature = "x25519")]
+    use ecies::x25519::generate_keypair;
+    use ecies::{decrypt, encrypt};
 
     let (sk, pk) = generate_keypair();
 
@@ -17,7 +23,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     #[cfg(feature = "x25519")]
     let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
     #[cfg(feature = "ed25519")]
-    let (sk, pk) = (&sk, &pk);
+    let (sk, pk) = (sk.as_bytes(), &pk);
 
     let small = &[7u8; 32];
     let small_encrypted = &encrypt(pk, small).unwrap();

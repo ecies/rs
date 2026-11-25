@@ -7,7 +7,11 @@ pub const COMPRESSED_PUBLIC_KEY_SIZE: usize = 33;
 pub const UNCOMPRESSED_PUBLIC_KEY_SIZE: usize = 65;
 
 #[cfg(any(feature = "x25519", feature = "ed25519"))]
-pub const PUBLIC_KEY_SIZE: usize = 32;
+pub const PUBLIC_KEY_SIZE: usize = CURVE25519_PUBLIC_KEY_SIZE;
+
+/// X25519 and Ed25519 public keys alike
+#[cfg(feature = "curve25519")]
+pub(crate) const CURVE25519_PUBLIC_KEY_SIZE: usize = 32;
 
 /// Nonce length. AES (12/16 bytes) or XChaCha20 (24 bytes)
 #[cfg(all(not(feature = "aes-short-nonce"), not(feature = "xchacha20")))]

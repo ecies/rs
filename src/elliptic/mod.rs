@@ -1,27 +1,34 @@
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
-mod secp256k1;
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
-pub(crate) use secp256k1::{Error, encapsulate_with_sender, parse_pk, parse_sk, pk_to_vec};
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
-pub use secp256k1::{PublicKey, SecretKey, decapsulate, encapsulate, generate_keypair};
+// Until `Config` picks the curve at run time (#178), only the curve the features pick uses its crate-internal helpers
 
-#[cfg(feature = "x25519")]
-mod x25519;
-#[cfg(feature = "x25519")]
-pub(crate) use x25519::{Error, encapsulate_with_sender, parse_pk, parse_sk, pk_to_vec};
-#[cfg(feature = "x25519")]
-pub use x25519::{PublicKey, SecretKey, decapsulate, encapsulate, generate_keypair};
+/// secp256k1 keys and key exchange
+#[cfg_attr(any(feature = "x25519", feature = "ed25519"), allow(dead_code))]
+pub mod secp256k1;
 
-#[cfg(feature = "ed25519")]
-mod ed25519;
-#[cfg(feature = "ed25519")]
-pub(crate) use ed25519::{Error, encapsulate_with_sender, parse_pk, parse_sk, pk_to_vec};
-#[cfg(feature = "ed25519")]
-pub use ed25519::{PublicKey, SecretKey, decapsulate, encapsulate, generate_keypair};
+/// X25519 keys and key exchange
+#[cfg(feature = "curve25519")]
+#[cfg_attr(not(feature = "x25519"), allow(dead_code))]
+pub mod x25519;
+
+/// Ed25519 keys and key exchange
+#[cfg(feature = "curve25519")]
+#[cfg_attr(not(feature = "ed25519"), allow(dead_code))]
+pub mod ed25519;
+
+#[cfg(all(feature = "x25519", feature = "ed25519"))]
+compile_error!("the `x25519` and `ed25519` features each pick the curve for `encrypt` and `decrypt`: enable one");
+
+// `feature_curve` is the curve `encrypt` and `decrypt` use, picked by Cargo features until `Config` takes over (#178)
+
+#[cfg(all(feature = "ed25519", not(feature = "x25519")))]
+pub(crate) use ed25519 as feature_curve;
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
+pub(crate) use secp256k1 as feature_curve;
+#[cfg(all(feature = "x25519", not(feature = "ed25519")))]
+pub(crate) use x25519 as feature_curve;
 
 #[cfg(test)]
 mod tests {
-    use super::{decapsulate, encapsulate, generate_keypair};
+    use super::feature_curve::{decapsulate, encapsulate, generate_keypair};
 
     #[test]
     fn test_key_exchange() {
