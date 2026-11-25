@@ -41,14 +41,24 @@ pub(crate) fn encapsulate_with_sender(
     peer_pk: &PublicKey,
     _compressed: bool,
 ) -> Result<SharedSecret, Error> {
-    let shared_point = sk.diffie_hellman(peer_pk);
+    let shared_point = diffie_hellman(sk, peer_pk)?;
     Ok(hkdf_derive(sender_pk.as_bytes(), shared_point.as_bytes()))
 }
 
 /// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
 pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, _compressed: bool) -> Result<SharedSecret, Error> {
-    let shared_point = peer_sk.diffie_hellman(pk);
+    let shared_point = diffie_hellman(peer_sk, pk)?;
     Ok(hkdf_derive(pk.as_bytes(), shared_point.as_bytes()))
+}
+
+/// A low-order public key makes the shared point all zeros, so anyone could decrypt (#180, RFC 7748 section 6.1)
+fn diffie_hellman(sk: &SecretKey, pk: &PublicKey) -> Result<x25519_dalek::SharedSecret, Error> {
+    let shared_point = sk.diffie_hellman(pk);
+    if shared_point.was_contributory() {
+        Ok(shared_point)
+    } else {
+        Err(Error::InvalidMessage)
+    }
 }
 
 /// Parse secret key bytes
@@ -190,10 +200,11 @@ mod error_tests {
 
     #[test]
     pub fn attempts_to_decrypt_incorrect_message() {
-        let (sk, _) = generate_keypair();
+        let (sk, pk) = generate_keypair();
 
         assert_eq!(decrypt(sk.as_bytes(), &[]), Err(Error::InvalidMessage));
-        assert_eq!(decrypt(sk.as_bytes(), &ZERO_SECRET), Err(Error::InvalidMessage));
+        // a valid ephemeral key with nothing after it
+        assert_eq!(decrypt(sk.as_bytes(), pk.as_bytes()), Err(Error::InvalidMessage));
     }
 
     #[test]
@@ -206,9 +217,94 @@ mod error_tests {
     }
 }
 
+/// #180: a low-order public key makes the shared point all zeros, so anyone can decrypt
+#[cfg(test)]
+mod small_order_tests {
+    use super::{Error, PublicKey, decapsulate, encapsulate, generate_keypair, parse_pk};
+    use crate::consts::{PUBLIC_KEY_SIZE, ZERO_SECRET};
+    use crate::symmetric::{hkdf_derive, sym_encrypt};
+    use crate::utils::tests::decode_hex;
+    use crate::{compat::Vec, decrypt, encrypt};
+
+    const MSG: &[u8] = b"hello world";
+
+    /// The low-order encodings libsodium rejects: five u-coordinates, with 0 and 1 also written as p and p + 1
+    const LOW_ORDER: [&str; 7] = [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "0100000000000000000000000000000000000000000000000000000000000000",
+        "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800",
+        "5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f1157",
+        "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+    ];
+
+    /// Each libsodium encoding, then the same with the top bit set, which X25519 ignores
+    fn low_order_encodings() -> Vec<[u8; PUBLIC_KEY_SIZE]> {
+        let encodings: Vec<[u8; PUBLIC_KEY_SIZE]> = LOW_ORDER
+            .iter()
+            .flat_map(|hex| {
+                let bytes: [u8; PUBLIC_KEY_SIZE] = decode_hex(hex).try_into().unwrap();
+                assert_eq!(bytes[PUBLIC_KEY_SIZE - 1] & 0x80, 0, "{hex} has the top bit set");
+                let mut top_bit = bytes;
+                top_bit[PUBLIC_KEY_SIZE - 1] |= 0x80;
+                [bytes, top_bit]
+            })
+            .collect();
+        for (i, encoding) in encodings.iter().enumerate() {
+            assert!(!encodings[..i].contains(encoding), "{encoding:02x?} is listed twice");
+        }
+        encodings
+    }
+
+    /// A payload as its author makes it: the ephemeral key, then the message encrypted with the key both sides derive
+    fn forge(ephemeral: &PublicKey, shared_point: &[u8; PUBLIC_KEY_SIZE]) -> Vec<u8> {
+        let mut payload = ephemeral.as_bytes().to_vec();
+        payload.extend(sym_encrypt(&hkdf_derive(ephemeral.as_bytes(), shared_point), MSG).unwrap());
+        payload
+    }
+
+    #[test]
+    pub fn rejects_low_order_public_keys() {
+        let (sk, _) = generate_keypair();
+        for pk in low_order_encodings() {
+            assert_eq!(encrypt(&pk, MSG), Err(Error::InvalidMessage));
+            assert_eq!(
+                encapsulate(&sk, &parse_pk(&pk).unwrap(), false),
+                Err(Error::InvalidMessage)
+            );
+        }
+    }
+
+    #[test]
+    pub fn rejects_low_order_ephemeral_keys() {
+        let (sk, pk) = generate_keypair();
+
+        let (honest_sk, honest) = generate_keypair();
+        let shared_point = honest_sk.diffie_hellman(&pk).to_bytes();
+        assert_eq!(decrypt(sk.as_bytes(), &forge(&honest, &shared_point)).unwrap(), MSG);
+
+        // the shared point is all zeros whatever the secret key, so these payloads used to decrypt under any key
+        for bytes in low_order_encodings() {
+            let ephemeral = parse_pk(&bytes).unwrap();
+            assert_eq!(
+                decrypt(sk.as_bytes(), &forge(&ephemeral, &ZERO_SECRET)),
+                Err(Error::InvalidMessage)
+            );
+            assert_eq!(decapsulate(&ephemeral, &sk, false), Err(Error::InvalidMessage));
+        }
+    }
+}
+
 #[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
     use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_small_order() {
+        super::small_order_tests::rejects_low_order_public_keys();
+        super::small_order_tests::rejects_low_order_ephemeral_keys();
+    }
 
     #[wasm_bindgen_test]
     fn test_random() {

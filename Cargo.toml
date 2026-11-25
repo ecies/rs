@@ -1,6 +1,6 @@
 [package]
 name = "ecies"
-version = "0.2.15"
+version = "0.2.16"
 # docs
 authors = ["Weiliang Li <to.be.impressive@gmail.com>"]
 description = "Elliptic Curve Integrated Encryption Scheme for secp256k1"
@@ -77,7 +77,7 @@ default = ["aes-openssl"]
 std = ["once_cell/std", "dep:parking_lot"]
 
 # curves
-# no usage, TODO: make optional after 0.3.0: secp256k1 = ["dep:k256"]
+# no usage, TODO: make optional from 0.3.0: secp256k1 = ["dep:k256"]
 secp256k1 = []
 x25519 = ["dep:curve25519-dalek", "dep:x25519-dalek"]
 ed25519 = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
@@ -91,7 +91,7 @@ aes-rust = ["dep:aes-gcm", "dep:typenum"]
 # 12 bytes nonce, default: 16 bytes
 aes-short-nonce = []
 
-# deprecated aes features, TODO: remove after 0.3.0
+# deprecated aes features, TODO: remove from 0.3.0 (aes-12bytes-nonce becomes a tombstone, #178)
 openssl = ["aes-openssl"]
 pure = ["aes-rust"]
 aes-12bytes-nonce = ["aes-short-nonce"]

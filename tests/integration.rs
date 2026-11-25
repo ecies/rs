@@ -58,22 +58,58 @@ fn is_compatible_with_python() {
 #[test]
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "x25519"), not(feature = "ed25519"),))]
 fn test_aad() {
+    use ecies::config::Config;
     use ecies::utils::generate_keypair;
-    use ecies::{decrypt, decrypt_with_aad, encrypt, encrypt_with_aad};
+    use ecies::{decrypt, decrypt_with_config, encrypt, encrypt_with_config};
     let (sk, pk) = generate_keypair();
     let (sk, pk) = (sk.serialize(), pk.serialize());
 
     const MSG: &[u8] = b"hello aad";
     const AAD: &[u8] = b"entry:DATABASE_PASSWORD";
+    const CONFIG: Config = Config::DEFAULT;
 
-    let ct = encrypt_with_aad(&pk, MSG, AAD).unwrap();
-    assert_eq!(decrypt_with_aad(&sk, &ct, AAD).unwrap(), MSG);
-    assert!(decrypt_with_aad(&sk, &ct, b"entry:API_TOKEN").is_err());
+    let ct = encrypt_with_config(&pk, MSG, AAD, &CONFIG).unwrap();
+    assert_eq!(decrypt_with_config(&sk, &ct, AAD, &CONFIG).unwrap(), MSG);
+    assert!(decrypt_with_config(&sk, &ct, b"entry:API_TOKEN", &CONFIG).is_err());
     assert!(decrypt(&sk, &ct).is_err());
 
-    // With empty AAD, callers can switch APIs one side at a time.
+    // With empty AAD and the default config, callers can switch APIs one side at a time.
     let legacy = encrypt(&pk, MSG).unwrap();
-    assert_eq!(decrypt_with_aad(&sk, &legacy, b"").unwrap(), MSG);
-    let empty_aad = encrypt_with_aad(&pk, MSG, b"").unwrap();
+    assert_eq!(decrypt_with_config(&sk, &legacy, b"", &CONFIG).unwrap(), MSG);
+    let empty_aad = encrypt_with_config(&pk, MSG, b"", &CONFIG).unwrap();
     assert_eq!(decrypt(&sk, &empty_aad).unwrap(), MSG);
+}
+
+/// The compression flags apply to secp256k1 only
+#[test]
+#[cfg(all(not(target_arch = "wasm32"), any(feature = "x25519", feature = "ed25519")))]
+fn ignores_compression_flags_on_curve25519() {
+    use ecies::config::Config;
+    use ecies::consts::PUBLIC_KEY_SIZE;
+    use ecies::utils::generate_keypair;
+    use ecies::{decrypt_with_config, encrypt_with_config};
+
+    const COMPRESSED: Config = Config {
+        is_ephemeral_key_compressed: true,
+        is_hkdf_key_compressed: true,
+    };
+    assert_eq!(COMPRESSED.ephemeral_key_size(), PUBLIC_KEY_SIZE);
+
+    let (sk, pk) = generate_keypair();
+    #[cfg(feature = "x25519")]
+    let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
+    #[cfg(feature = "ed25519")]
+    let (sk, pk) = (&sk, &pk);
+
+    for (encrypt_config, decrypt_config) in [
+        (COMPRESSED, Config::DEFAULT),
+        (Config::DEFAULT, COMPRESSED),
+        (COMPRESSED, COMPRESSED),
+    ] {
+        let encrypted = encrypt_with_config(pk, b"msg", b"aad", &encrypt_config).unwrap();
+        assert_eq!(
+            decrypt_with_config(sk, &encrypted, b"aad", &decrypt_config).unwrap(),
+            b"msg"
+        );
+    }
 }

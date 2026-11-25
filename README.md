@@ -18,11 +18,15 @@ This library can be compiled to the WASM target at your option, see [WASM compat
 
 ## Quick start
 
-`no_std` is enabled by default. You can enable `std` with `std` feature.
+`no_std` is enabled by default. On targets with the standard library, enable the `std` feature:
 
 ```toml
 ecies = {version = "0.2", features = ["std"]} # MSRV is 1.87
 ```
+
+Without `std`, ecies needs a [`critical-section`](https://crates.io/crates/critical-section) implementation, which embedded targets usually get from their HAL or runtime crate. wasm32 builds don't need one. On other targets with an operating system, a binary without `std` fails to link with `_critical_section_1_0_acquire` undefined, unless another dependency enables `once_cell`'s `std` feature or provides a `critical-section` implementation, such as `critical-section/std`.
+
+The feature snippets further down leave `std` out for brevity, so add it on targets with the standard library.
 
 ```rust
 use ecies::{decrypt, encrypt, utils::generate_keypair};
@@ -50,7 +54,7 @@ The ciphertext doesn't include the name, so pass it again when you decrypt the v
 If someone swaps two entries, neither value will decrypt under the other entry's name.
 
 ```rust
-use ecies::{decrypt_with_aad, encrypt_with_aad, utils::generate_keypair};
+use ecies::{config::Config, decrypt_with_config, encrypt_with_config, utils::generate_keypair};
 
 let (sk, pk) = generate_keypair();
 #[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
@@ -60,13 +64,24 @@ let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
 #[cfg(feature = "ed25519")]
 let (sk, pk) = (&sk, &pk);
 
-let encrypted = encrypt_with_aad(pk, b"msg", b"DATABASE_PASSWORD").unwrap();
+let encrypted = encrypt_with_config(pk, b"msg", b"DATABASE_PASSWORD", &Config::DEFAULT).unwrap();
 assert_eq!(
     b"msg",
-    decrypt_with_aad(sk, &encrypted, b"DATABASE_PASSWORD").unwrap().as_slice()
+    decrypt_with_config(sk, &encrypted, b"DATABASE_PASSWORD", &Config::DEFAULT).unwrap().as_slice()
 );
-assert!(decrypt_with_aad(sk, &encrypted, b"API_TOKEN").is_err());
+assert!(decrypt_with_config(sk, &encrypted, b"API_TOKEN", &Config::DEFAULT).is_err());
 ```
+
+## Planned for 0.3
+
+0.3 moves every payload format choice into `Config`, tracked in [#178](https://github.com/ecies/rs/issues/178):
+
+- The global config (`ECIES_CONFIG`, `update_config`, `reset_config`) is removed. `encrypt_with_config` and `decrypt_with_config` already take the 0.3 arguments, so switch to them now. They ignore the global config, so if another crate in your build calls `update_config`, set the same flags in your own `Config`.
+- `Config` gains fields for the curve, the cipher and the AES nonce length. The `x25519`, `ed25519`, `xchacha20`, `aes-short-nonce` and `aes-12bytes-nonce` features then fail the build with a message naming the replacement, and X25519 and Ed25519 move behind one `curve25519` feature. The backend aliases `openssl` and `pure` are removed: use `aes-openssl`, or nothing for pure Rust.
+- `secp256k1`, still on by default, controls whether secp256k1 is built. With `default-features = false`, name `secp256k1` or `curve25519`; a build with neither fails with a message.
+- Pure Rust becomes the default AES backend. Enable `aes-openssl` to keep OpenSSL.
+
+Each 0.2 setup either produces the same bytes on 0.3 or fails to build, as long as its settings come from its own code and Cargo features. If another crate in your build calls `update_config` or enables `xchacha20`, `aes-short-nonce` or `aes-12bytes-nonce`, your bytes follow it today, and stop following it once you and that crate are on different ecies versions.
 
 ## Elliptic curve configuration
 
@@ -81,29 +96,39 @@ ecies = {version = "0.2", features = ["ed25519"]} # or if you know what you are 
 
 ### Secp256k1-specific configuration
 
-Some behaviors can be configured by global static variable:
-
-```rust
-pub struct Config {
-    pub is_ephemeral_key_compressed: bool,
-    pub is_hkdf_key_compressed: bool
-}
-```
+`Config` has two flags that change the payload on secp256k1. x25519 and ed25519 ignore them.
 
 On `is_ephemeral_key_compressed: true`, the payload would be like: `33 Bytes + AES` instead of `65 Bytes + AES`.
 
 On `is_hkdf_key_compressed: true`, the hkdf key would be derived from `ephemeral public key (compressed) + shared public key (compressed)` instead of `ephemeral public key (uncompressed) + shared public key (uncompressed)`.
 
-```rust
-use ecies::config::{Config, update_config};
+Pass the config to `encrypt_with_config` and `decrypt_with_config`, with empty AAD if you don't need any:
 
-update_config(Config {
+```rust
+use ecies::{config::Config, decrypt_with_config, encrypt_with_config, utils::generate_keypair};
+
+const CONFIG: Config = Config {
     is_ephemeral_key_compressed: true,
-    is_hkdf_key_compressed: true
-});
+    ..Config::DEFAULT
+};
+
+let (sk, pk) = generate_keypair();
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
+let (sk, pk) = (&sk.serialize(), &pk.serialize());
+#[cfg(feature = "x25519")]
+let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
+#[cfg(feature = "ed25519")]
+let (sk, pk) = (&sk, &pk);
+
+let encrypted = encrypt_with_config(pk, b"msg", b"", &CONFIG).unwrap();
+assert_eq!(b"msg", decrypt_with_config(sk, &encrypted, b"", &CONFIG).unwrap().as_slice());
 ```
 
-For compatibility, make sure different applications share the same configuration. Normally configuration is only updated once on initialization, if not, beware of race condition.
+Filling the other fields from `Config::DEFAULT` keeps this code compiling on 0.3, which adds fields. If you set both flags, Clippy's `needless_update` lint warns about `..Config::DEFAULT` until then.
+
+For compatibility, make sure different applications share the same configuration.
+
+`encrypt` and `decrypt` still read the global config set by `update_config`, but it's deprecated: any crate in the process can change it for every other caller.
 
 ## Symmetric cipher configuration
 
@@ -115,7 +140,7 @@ You can choose to use OpenSSL implementation or [pure Rust implementation](https
 ecies = {version = "0.2", default-features = false, features = ["secp256k1", "aes-rust"]}
 ```
 
-With `default-features = false`, name the curve feature too, such as `secp256k1` above. The `secp256k1` feature has no effect in 0.2, but from 0.3 it controls whether secp256k1 is built, so builds that leave it out will not include secp256k1.
+With `default-features = false`, name the curve feature too, such as `secp256k1` above. The `secp256k1` feature has no effect in 0.2. From 0.3 it controls whether secp256k1 is built, so builds that leave it out won't include secp256k1.
 
 Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
 

@@ -74,12 +74,18 @@ pub fn pk_to_vec(pk: &PublicKey, _compressed: bool) -> Vec<u8> {
 }
 
 fn multiply(sk: &SecretKey, pk: &PublicKey) -> Result<EdwardsPoint, Error> {
-    let shared_point = CompressedEdwardsY::from_slice(pk)
+    let point = CompressedEdwardsY::from_slice(pk)
         .unwrap() // never fails
         .decompress()
-        .ok_or(Error::InvalidPublicKey)?
-        .mul_clamped(to_scalar(sk));
-    Ok(shared_point)
+        .ok_or(Error::InvalidPublicKey)?;
+
+    // A small-order point makes the shared point the identity, so anyone could decrypt. A mixed-order point is
+    // harmless here, but eciesjs usually computes a different shared point for it, so it is refused too, as
+    // ecies/js#922 proposes for eciesjs. The identity is torsion-free, so it needs the first check
+    if point.is_small_order() || !point.is_torsion_free() {
+        return Err(Error::InvalidPublicKey);
+    }
+    Ok(point.mul_clamped(to_scalar(sk)))
 }
 
 fn to_scalar(sk: &SecretKey) -> SecretKey {
@@ -219,10 +225,11 @@ mod error_tests {
 
     #[test]
     pub fn attempts_to_decrypt_incorrect_message() {
-        let (sk, _) = generate_keypair();
+        let (sk, pk) = generate_keypair();
 
         assert_eq!(decrypt(&sk, &[]), Err(Error::InvalidMessage));
-        assert_eq!(decrypt(&sk, &ZERO_SECRET), Err(Error::InvalidMessage));
+        // a valid ephemeral key with nothing after it
+        assert_eq!(decrypt(&sk, &pk), Err(Error::InvalidMessage));
     }
 
     #[test]
@@ -235,9 +242,144 @@ mod error_tests {
     }
 }
 
+/// #180: a small-order public key makes the shared point the identity, so anyone can decrypt. Mixed-order keys are
+/// refused too, as ecies/js#922 proposes for eciesjs
+#[cfg(test)]
+mod small_order_tests {
+    use curve25519_dalek::{
+        EdwardsPoint, constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY, scalar::Scalar,
+    };
+
+    use super::{Error, PUBLIC_KEY_SIZE, PublicKey, decapsulate, encapsulate, generate_keypair};
+    use crate::symmetric::{hkdf_derive, sym_encrypt};
+    use crate::utils::tests::decode_hex;
+    use crate::{compat::Vec, decrypt, encrypt};
+
+    const MSG: &[u8] = b"hello world";
+
+    /// The 8 points of order dividing 8, as `ED25519_TORSION_SUBGROUP` in @noble/curves lists them. The first is the
+    /// identity
+    const SMALL_ORDER: [&str; 8] = [
+        "0100000000000000000000000000000000000000000000000000000000000000",
+        "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+        "0000000000000000000000000000000000000000000000000000000000000080",
+        "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+        "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85",
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa",
+    ];
+
+    /// Non-canonical encodings of small-order points that curve25519-dalek still decodes: the sign bit set where x is 0
+    /// (the identity and the order-2 point), and y written as p or p + 1, with either sign bit
+    const NON_CANONICAL_SMALL_ORDER: [&str; 6] = [
+        "0100000000000000000000000000000000000000000000000000000000000080",
+        "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    ];
+
+    fn point(hex: &str) -> EdwardsPoint {
+        let point = CompressedEdwardsY(decode_hex(hex).try_into().unwrap())
+            .decompress()
+            .unwrap();
+        assert!(point.is_small_order(), "{hex} is not small order");
+        point
+    }
+
+    /// The bytes of every small-order encoding curve25519-dalek decodes, canonical ones first
+    fn small_order_encodings() -> Vec<PublicKey> {
+        let canonical = SMALL_ORDER.map(|hex| point(hex).compress().to_bytes());
+        let non_canonical = NON_CANONICAL_SMALL_ORDER.map(|hex| {
+            let bytes: PublicKey = decode_hex(hex).try_into().unwrap();
+            assert_ne!(point(hex).compress().to_bytes(), bytes, "{hex} is canonical");
+            bytes
+        });
+        let encodings: Vec<PublicKey> = canonical.into_iter().chain(non_canonical).collect();
+        for (i, encoding) in encodings.iter().enumerate() {
+            assert!(!encodings[..i].contains(encoding), "{encoding:02x?} is listed twice");
+        }
+        encodings
+    }
+
+    /// An honest public key plus each small-order point other than the identity
+    fn mixed_order_keys(pk: &PublicKey) -> [PublicKey; 7] {
+        let honest = CompressedEdwardsY(*pk).decompress().unwrap();
+        core::array::from_fn(|i| (honest + point(SMALL_ORDER[i + 1])).compress().to_bytes())
+    }
+
+    /// A payload as its author makes it: the ephemeral key, then the message encrypted with the key both sides derive
+    fn forge(ephemeral: &PublicKey, shared_point: &[u8; PUBLIC_KEY_SIZE]) -> Vec<u8> {
+        let mut payload = ephemeral.to_vec();
+        payload.extend(sym_encrypt(&hkdf_derive(ephemeral, shared_point), MSG).unwrap());
+        payload
+    }
+
+    #[test]
+    pub fn rejects_small_order_public_keys() {
+        let (sk, _) = generate_keypair();
+        for pk in small_order_encodings() {
+            assert_eq!(encrypt(&pk, MSG), Err(Error::InvalidPublicKey));
+            assert_eq!(encapsulate(&sk, &pk, false), Err(Error::InvalidPublicKey));
+        }
+    }
+
+    #[test]
+    pub fn rejects_mixed_order_public_keys() {
+        let (sk, pk) = generate_keypair();
+        assert!(encrypt(&pk, MSG).is_ok());
+        for mixed in mixed_order_keys(&pk) {
+            assert_eq!(encrypt(&mixed, MSG), Err(Error::InvalidPublicKey));
+            assert_eq!(encapsulate(&sk, &mixed, false), Err(Error::InvalidPublicKey));
+        }
+    }
+
+    #[test]
+    pub fn rejects_small_order_ephemeral_keys() {
+        // the shared point is the identity whatever the secret key, so these payloads used to decrypt under any key
+        let identity = point(SMALL_ORDER[0]).compress().to_bytes();
+        let (sk, _) = generate_keypair();
+        for ephemeral in small_order_encodings() {
+            assert_eq!(
+                decrypt(&sk, &forge(&ephemeral, &identity)),
+                Err(Error::InvalidPublicKey)
+            );
+            assert_eq!(decapsulate(&ephemeral, &sk, false), Err(Error::InvalidPublicKey));
+        }
+    }
+
+    #[test]
+    pub fn rejects_mixed_order_ephemeral_keys() {
+        // [r]G + T: the clamped scalar is a multiple of 8, so the torsion part used to cancel and leave [r]pk
+        let (sk, pk) = generate_keypair();
+        let r = Scalar::from(0x0123_4567_89ab_cdef_u64);
+        let shared_point = (CompressedEdwardsY(pk).decompress().unwrap() * r).compress().to_bytes();
+
+        let honest = (G * r).compress().to_bytes();
+        assert_eq!(decrypt(&sk, &forge(&honest, &shared_point)).unwrap(), MSG);
+
+        for ephemeral in mixed_order_keys(&honest) {
+            assert_eq!(
+                decrypt(&sk, &forge(&ephemeral, &shared_point)),
+                Err(Error::InvalidPublicKey)
+            );
+        }
+    }
+}
+
 #[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
     use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_small_order() {
+        super::small_order_tests::rejects_small_order_public_keys();
+        super::small_order_tests::rejects_mixed_order_public_keys();
+        super::small_order_tests::rejects_small_order_ephemeral_keys();
+        super::small_order_tests::rejects_mixed_order_ephemeral_keys();
+    }
 
     #[wasm_bindgen_test]
     fn test_random() {
