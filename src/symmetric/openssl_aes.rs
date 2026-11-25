@@ -12,7 +12,7 @@ use crate::consts::{AEAD_TAG_LENGTH, NONCE_LENGTH, NONCE_TAG_LENGTH};
 const CHUNK_LENGTH: usize = 1 << 30;
 
 /// AES-256-GCM encryption wrapper, appending the nonce, tag and ciphertext to the provided buffer
-pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Option<()> {
+pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plaintext: &[u8], aad: &[u8]) -> Option<()> {
     let cipher = Cipher::aes_256_gcm();
     // 1 for AES-256-GCM, but `Crypter` demands this slack space on top of the message size
     let block_size = cipher.block_size();
@@ -26,6 +26,7 @@ pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plain
     output.resize(encrypted_start + plaintext.len() + block_size, 0);
 
     let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(nonce)).ok()?;
+    update_aad(&mut crypter, aad)?;
     let mut count = update_all(&mut crypter, plaintext, &mut output[encrypted_start..])?;
     count += crypter.finalize(&mut output[encrypted_start + count..]).ok()?;
     output.truncate(encrypted_start + count);
@@ -36,7 +37,7 @@ pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plain
 }
 
 /// AES-256-GCM decryption wrapper
-pub(super) fn decrypt(key: &[u8], ciphertext: &[u8]) -> Option<Vec<u8>> {
+pub(super) fn decrypt(key: &[u8], ciphertext: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
     if ciphertext.len() < NONCE_TAG_LENGTH {
         return None;
     }
@@ -49,12 +50,21 @@ pub(super) fn decrypt(key: &[u8], ciphertext: &[u8]) -> Option<Vec<u8>> {
 
     // what `decrypt_aead` does, but in chunks: the tag goes in after the data, and finalizing checks it
     let mut crypter = Crypter::new(cipher, Mode::Decrypt, key, Some(nonce)).ok()?;
+    update_aad(&mut crypter, aad)?;
     let mut plaintext = vec![0u8; ciphertext.len() + cipher.block_size()];
     let mut count = update_all(&mut crypter, ciphertext, &mut plaintext)?;
     crypter.set_tag(tag).ok()?;
     count += crypter.finalize(&mut plaintext[count..]).ok()?;
     plaintext.truncate(count);
     Some(plaintext)
+}
+
+/// OpenSSL takes an `int` length for AAD too, so feed it in chunks.
+fn update_aad(crypter: &mut Crypter, aad: &[u8]) -> Option<()> {
+    for chunk in aad.chunks(CHUNK_LENGTH) {
+        crypter.aad_update(chunk).ok()?;
+    }
+    Some(())
 }
 
 /// Feeds `input` through the cipher in chunks, returning how many bytes it wrote to `output`

@@ -1,7 +1,7 @@
-//! Messages over `i32::MAX` bytes, the most rust-openssl takes in one call, which made the OpenSSL AES backend
-//! panic: <https://github.com/ecies/rs/issues/174>.
+//! rust-openssl takes at most `i32::MAX` bytes per call, including calls that pass AAD.
+//! Messages over that limit used to panic. See <https://github.com/ecies/rs/issues/174>.
 //!
-//! These tests need about 4 GiB of memory, so they run in release builds only: `cargo test --release`.
+//! Run these with `cargo test --release` on a machine with about 4 GiB of memory to spare.
 //! Only 64-bit targets can hold such messages. The bug is in the AES layer, so the default curve is enough.
 #![cfg(all(target_pointer_width = "64", not(feature = "x25519"), not(feature = "ed25519")))]
 
@@ -52,4 +52,19 @@ fn rejects_a_forged_message_over_2_gib() {
 
     let result = decrypt(&sk.serialize(), &forged);
     assert_eq!(result.unwrap_err().to_string(), "Invalid message");
+}
+
+#[test]
+#[cfg(feature = "aes-openssl")]
+#[cfg_attr(debug_assertions, ignore = "allocates over 2 GiB, so it runs in release builds only")]
+fn authenticates_aad_over_2_gib() {
+    use ecies::{decrypt_with_aad, encrypt_with_aad};
+
+    let (sk, pk) = generate_keypair();
+    let mut aad = vec![0u8; SIZE];
+    let encrypted = encrypt_with_aad(&pk.serialize(), b"", &aad).unwrap();
+    assert!(decrypt_with_aad(&sk.serialize(), &encrypted, &aad).unwrap().is_empty());
+
+    aad[SIZE - 1] ^= 1;
+    assert!(decrypt_with_aad(&sk.serialize(), &encrypted, &aad).is_err());
 }

@@ -43,6 +43,31 @@ assert_eq!(
 );
 ```
 
+### Additional authenticated data (AAD)
+
+If you're storing encrypted values by name, you can use the entry name as AAD.
+The ciphertext doesn't include the name, so pass it again when you decrypt the value.
+If someone swaps two entries, neither value will decrypt under the other entry's name.
+
+```rust
+use ecies::{decrypt_with_aad, encrypt_with_aad, utils::generate_keypair};
+
+let (sk, pk) = generate_keypair();
+#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
+let (sk, pk) = (&sk.serialize(), &pk.serialize());
+#[cfg(feature = "x25519")]
+let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
+#[cfg(feature = "ed25519")]
+let (sk, pk) = (&sk, &pk);
+
+let encrypted = encrypt_with_aad(pk, b"msg", b"DATABASE_PASSWORD").unwrap();
+assert_eq!(
+    b"msg",
+    decrypt_with_aad(sk, &encrypted, b"DATABASE_PASSWORD").unwrap().as_slice()
+);
+assert!(decrypt_with_aad(sk, &encrypted, b"API_TOKEN").is_err());
+```
+
 ## Elliptic curve configuration
 
 ### Optional x25519/ed25519 support

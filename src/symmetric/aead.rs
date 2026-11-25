@@ -13,14 +13,14 @@ type Cipher = AesGcm<Aes256, typenum::consts::U16>;
 type Cipher = XChaCha20Poly1305;
 
 use crate::compat::Vec;
-use crate::consts::{AEAD_TAG_LENGTH, EMPTY_BYTES, NONCE_LENGTH, NONCE_TAG_LENGTH};
+use crate::consts::{AEAD_TAG_LENGTH, NONCE_LENGTH, NONCE_TAG_LENGTH};
 
 /// Pure Rust AES-256-GCM or XChaCha20-Poly1305 encryption wrapper,
 /// appending the nonce, tag and ciphertext to the provided buffer.
 /// Maximum message size: 64GB (AES) or 256GB (XChaCha20).
 ///
 /// It's basically safe to just `unwrap` the returned `Option<()>`.
-pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Option<()> {
+pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plaintext: &[u8], aad: &[u8]) -> Option<()> {
     let aead = Cipher::new_from_slice(key).ok()?;
 
     let base = output.len();
@@ -30,7 +30,7 @@ pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plain
     output.extend(plaintext);
 
     let nonce = Nonce::<Cipher>::try_from(nonce).ok()?;
-    aead.encrypt_inout_detached(&nonce, &EMPTY_BYTES, (&mut output[base + NONCE_TAG_LENGTH..]).into())
+    aead.encrypt_inout_detached(&nonce, aad, (&mut output[base + NONCE_TAG_LENGTH..]).into())
         .map(|tag| {
             output[base + NONCE_LENGTH..base + NONCE_TAG_LENGTH].copy_from_slice(&tag);
         })
@@ -38,7 +38,7 @@ pub(super) fn encrypt_into(output: &mut Vec<u8>, key: &[u8], nonce: &[u8], plain
 }
 
 /// Pure Rust AES-256-GCM or XChaCha20-Poly1305 decryption wrapper
-pub(super) fn decrypt(key: &[u8], ciphertext: &[u8]) -> Option<Vec<u8>> {
+pub(super) fn decrypt(key: &[u8], ciphertext: &[u8], aad: &[u8]) -> Option<Vec<u8>> {
     if ciphertext.len() < NONCE_TAG_LENGTH {
         return None;
     }
@@ -50,7 +50,7 @@ pub(super) fn decrypt(key: &[u8], ciphertext: &[u8]) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(ciphertext.len() - NONCE_TAG_LENGTH);
     out.extend(&ciphertext[NONCE_TAG_LENGTH..]);
 
-    aead.decrypt_inout_detached(&nonce, &EMPTY_BYTES, out.as_mut_slice().into(), &tag)
+    aead.decrypt_inout_detached(&nonce, aad, out.as_mut_slice().into(), &tag)
         .map(|_| out)
         .ok()
 }
