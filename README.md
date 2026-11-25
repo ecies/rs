@@ -78,6 +78,7 @@ assert!(decrypt_with_config(sk, &encrypted, b"API_TOKEN", &Config::DEFAULT).is_e
 
 - The global config (`ECIES_CONFIG`, `update_config`, `reset_config`) is removed. `encrypt_with_config` and `decrypt_with_config` already take the 0.3 arguments, so switch to them now. They ignore the global config, so if another crate in your build calls `update_config`, set the same flags in your own `Config`.
 - `Config` gains fields for the curve, the cipher and the AES nonce length. The `x25519`, `ed25519`, `xchacha20`, `aes-short-nonce` and `aes-12bytes-nonce` features then fail the build with a message naming the replacement, and X25519 and Ed25519 move behind one `curve25519` feature. The backend aliases `openssl` and `pure` are removed: use `aes-openssl`, or nothing for pure Rust.
+- `secp256k1`, still on by default, controls whether secp256k1 is built. With `default-features = false`, name `secp256k1` or `curve25519`; a build with neither fails with a message.
 - Pure Rust becomes the default AES backend. Enable `aes-openssl` to keep OpenSSL.
 
 Each 0.2 setup either produces the same bytes on 0.3 or fails to build, as long as its settings come from its own code and Cargo features. If another crate in your build calls `update_config` or enables `xchacha20`, `aes-short-nonce` or `aes-12bytes-nonce`, your bytes follow it today, and stop following it once you and that crate are on different ecies versions.
@@ -139,7 +140,7 @@ You can choose to use OpenSSL implementation or [pure Rust implementation](https
 ecies = {version = "0.2", default-features = false, features = ["secp256k1", "aes-rust"]}
 ```
 
-With `default-features = false`, name the curve feature too, such as `secp256k1` above. The `secp256k1` feature has no effect in 0.2 or 0.3. A later release makes it control whether secp256k1 is built, so builds that leave it out will then not include secp256k1.
+With `default-features = false`, name the curve feature too, such as `secp256k1` above. The `secp256k1` feature has no effect in 0.2. From 0.3 it controls whether secp256k1 is built, so builds that leave it out won't include secp256k1.
 
 Due to some [performance problem](https://github.com/RustCrypto/AEADs/issues/243), OpenSSL is the default backend.
 
