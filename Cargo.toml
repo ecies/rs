@@ -37,13 +37,10 @@ ed25519-dalek = { version = "3.0.0", default-features = false, optional = true }
 # symmetric ciphers
 # aes (openssl)
 openssl = { version = "0.10.81", default-features = false, optional = true } # msrv 1.80
-# aes (pure Rust)
-aes-gcm = { version = "0.11.0", default-features = false, features = [
-  "aes",
-], optional = true }
-typenum = { version = "1.20.1", default-features = false, optional = true }
-# xchacha20
-chacha20poly1305 = { version = "0.11.0", default-features = false, optional = true }
+# aes (pure Rust), always compiled
+aes-gcm = { version = "0.11.0", default-features = false, features = ["aes"] }
+# xchacha20, always compiled
+chacha20poly1305 = { version = "0.11.0", default-features = false }
 
 # hash
 hkdf = { version = "0.13.0", default-features = false }
@@ -90,7 +87,8 @@ zeroize = ["x25519-dalek?/zeroize", "ed25519-dalek?/zeroize"]
 
 # aes
 aes-openssl = ["dep:openssl"]
-aes-rust = ["dep:aes-gcm", "dep:typenum"]
+# no-op: pure Rust AES is always compiled, and used unless aes-openssl is on
+aes-rust = []
 # 12 bytes nonce, default: 16 bytes
 aes-short-nonce = []
 
@@ -99,8 +97,8 @@ openssl = ["aes-openssl"]
 pure = ["aes-rust"]
 aes-12bytes-nonce = ["aes-short-nonce"]
 
-# xchacha20
-xchacha20 = ["dep:chacha20poly1305"]
+# xchacha20: selects XChaCha20-Poly1305 instead of AES-256-GCM
+xchacha20 = []
 
 [dev-dependencies]
 criterion = { version = "0.8.2", default-features = false }

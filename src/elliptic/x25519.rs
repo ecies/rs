@@ -223,7 +223,7 @@ mod error_tests {
 mod small_order_tests {
     use super::{Error, PublicKey, decapsulate, encapsulate, generate_keypair, parse_pk};
     use crate::consts::{PUBLIC_KEY_SIZE, ZERO_SECRET};
-    use crate::symmetric::{hkdf_derive, sym_encrypt};
+    use crate::symmetric::{FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH, hkdf_derive, sym_encrypt_into};
     use crate::utils::tests::decode_hex;
     use crate::{compat::Vec, decrypt, encrypt};
 
@@ -261,7 +261,8 @@ mod small_order_tests {
     /// A payload as its author makes it: the ephemeral key, then the message encrypted with the key both sides derive
     fn forge(ephemeral: &PublicKey, shared_point: &[u8; PUBLIC_KEY_SIZE]) -> Vec<u8> {
         let mut payload = ephemeral.as_bytes().to_vec();
-        payload.extend(sym_encrypt(&hkdf_derive(ephemeral.as_bytes(), shared_point), MSG).unwrap());
+        let key = hkdf_derive(ephemeral.as_bytes(), shared_point);
+        sym_encrypt_into(&mut payload, &key, MSG, &[], FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH).unwrap();
         payload
     }
 

@@ -11,20 +11,19 @@ extern crate alloc;
 pub mod config;
 /// Constant variables
 pub mod consts;
-/// Symmetric encryption/decryption
-pub mod symmetric;
 /// Utility functions
 pub mod utils;
 
 mod compat;
 mod elliptic;
+mod symmetric;
 
 #[cfg(not(feature = "std"))]
 mod sync;
 
 use config::{Config, global_config};
 use elliptic::{Error, decapsulate, encapsulate_with_sender, generate_keypair, parse_pk, parse_sk, pk_to_vec};
-use symmetric::{sym_decrypt_with_aad, sym_encrypt_into};
+use symmetric::{FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH, sym_decrypt, sym_encrypt_into};
 
 use crate::compat::Vec;
 pub use elliptic::{PublicKey, SecretKey};
@@ -62,7 +61,15 @@ pub fn encrypt_with_config(receiver_pub: &[u8], msg: &[u8], aad: &[u8], config: 
     )?;
 
     let mut cipher_text = pk_to_vec(&ephemeral_pk, config.is_ephemeral_key_compressed);
-    sym_encrypt_into(&mut cipher_text, &sym_key, msg, aad).ok_or(Error::InvalidMessage)?;
+    sym_encrypt_into(
+        &mut cipher_text,
+        &sym_key,
+        msg,
+        aad,
+        FEATURE_ALGORITHM,
+        FEATURE_NONCE_LENGTH,
+    )
+    .ok_or(Error::InvalidMessage)?;
 
     Ok(cipher_text)
 }
@@ -99,5 +106,5 @@ pub fn decrypt_with_config(receiver_sec: &[u8], msg: &[u8], aad: &[u8], config: 
     let encrypted = &msg[key_size..];
 
     let sym_key = decapsulate(&ephemeral_pk, &receiver_sk, config.is_hkdf_key_compressed)?;
-    sym_decrypt_with_aad(&sym_key, encrypted, aad).ok_or(Error::InvalidMessage)
+    sym_decrypt(&sym_key, encrypted, aad, FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH).ok_or(Error::InvalidMessage)
 }
