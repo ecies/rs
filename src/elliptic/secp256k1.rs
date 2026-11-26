@@ -5,35 +5,10 @@ use k256::elliptic_curve::Generate;
 use k256::elliptic_curve::sec1::ToSec1Point;
 use k256::{NonZeroScalar, PublicKey as K256PublicKey, SecretKey as K256SecretKey};
 
+use crate::Error;
 use crate::compat::Vec;
 use crate::consts::SharedSecret;
 use crate::symmetric::hkdf_derive;
-
-// for compatibility with libsecp256k1
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(clippy::enum_variant_names)]
-pub enum Error {
-    InvalidPublicKey,
-    InvalidSecretKey,
-    InvalidMessage,
-    InvalidInputLength,
-    InvalidAffine,
-}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::InvalidPublicKey => write!(f, "Invalid public key"),
-            Error::InvalidSecretKey => write!(f, "Invalid secret key"),
-            Error::InvalidMessage => write!(f, "Invalid message"),
-            Error::InvalidInputLength => write!(f, "Invalid input length"),
-            Error::InvalidAffine => write!(f, "Invalid affine"),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
 
 // k256 compares secret keys in constant time
 #[derive(Clone, Eq, PartialEq)]
@@ -60,7 +35,7 @@ impl SecretKey {
 
     pub fn parse_slice(sk: &[u8]) -> Result<Self, Error> {
         if sk.len() != 32 {
-            return Err(Error::InvalidInputLength);
+            return Err(Error::InvalidSecretKey);
         }
         K256SecretKey::from_slice(sk)
             .map(Self)
@@ -75,10 +50,14 @@ impl SecretKey {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PublicKey(K256PublicKey);
 
+/// The encoding [`PublicKey::parse_slice`] expects. Passing `None` there picks it from the length
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PublicKeyFormat {
+    /// 33 bytes: `0x02` or `0x03`, then the x coordinate
     Compressed,
+    /// 65 bytes: `0x04`, then the x and y coordinates
     Full,
+    /// 64 bytes: the x and y coordinates, with no prefix
     Raw,
 }
 
@@ -99,7 +78,7 @@ impl PublicKey {
                     .map(Self)
                     .map_err(|_| Error::InvalidPublicKey);
             }
-            _ => return Err(Error::InvalidInputLength),
+            _ => return Err(Error::InvalidPublicKey),
         };
 
         K256PublicKey::from_sec1_bytes(bytes)
@@ -123,7 +102,8 @@ impl PublicKey {
 
     pub fn tweak_mul_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
         let point = self.0.to_projective() * tweak.0.to_nonzero_scalar().as_ref();
-        self.0 = K256PublicKey::from_affine(point.to_affine()).map_err(|_| Error::InvalidAffine)?;
+        // only the identity fails, which a valid key and a nonzero scalar can't reach on a prime-order curve
+        self.0 = K256PublicKey::from_affine(point.to_affine()).map_err(|_| Error::InvalidPublicKey)?;
         Ok(())
     }
 }
@@ -160,17 +140,17 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, compressed: bool) -> Res
 }
 
 /// Parse secret key bytes
-pub fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
+pub(crate) fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
     SecretKey::parse_slice(sk)
 }
 
 /// Parse public key bytes
-pub fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
+pub(crate) fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
     PublicKey::parse_slice(pk, None)
 }
 
 /// Public key to bytes
-pub fn pk_to_vec(pk: &PublicKey, compressed: bool) -> Vec<u8> {
+pub(crate) fn pk_to_vec(pk: &PublicKey, compressed: bool) -> Vec<u8> {
     if compressed {
         pk.serialize_compressed().to_vec()
     } else {
@@ -189,13 +169,14 @@ fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey, compres
     }
 }
 
-#[cfg(test)]
+// these tests go through `encrypt` and `decrypt`, so they run when the features pick secp256k1
+#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
 mod known_tests {
-    use super::{Error, PublicKey, SecretKey, encapsulate, parse_sk};
+    use super::{PublicKey, SecretKey, encapsulate, parse_sk};
 
     use crate::consts::ZERO_SECRET;
-    use crate::decrypt;
     use crate::utils::tests::decode_hex;
+    use crate::{Error, decrypt};
     pub fn get_sk(i: u8) -> SecretKey {
         let mut sk = ZERO_SECRET;
         sk[31] = i;
@@ -228,8 +209,8 @@ mod known_tests {
 
     #[test]
     fn test_invalid_secret_length() {
-        assert_eq!(parse_sk(&[1u8; 31]), Err(Error::InvalidInputLength));
-        assert_eq!(parse_sk(&[1u8; 33]), Err(Error::InvalidInputLength));
+        assert_eq!(parse_sk(&[1u8; 31]), Err(Error::InvalidSecretKey));
+        assert_eq!(parse_sk(&[1u8; 33]), Err(Error::InvalidSecretKey));
     }
 
     #[test]
@@ -315,7 +296,7 @@ mod known_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
 mod random_tests {
     use rand_core::utils::{fill_bytes_via_next_word, next_u64_via_u32};
     use rand_core::{Infallible, TryCryptoRng, TryRng};
@@ -408,15 +389,15 @@ mod random_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
 mod error_tests {
     #[cfg(not(feature = "std"))]
     use alloc::format;
     #[cfg(feature = "std")]
     use std::format;
 
-    use super::{Error, PublicKey, generate_keypair, parse_pk};
-    use crate::{decrypt, encrypt};
+    use super::{PublicKey, generate_keypair, parse_pk};
+    use crate::{Error, decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
 
@@ -449,30 +430,8 @@ mod error_tests {
 
     #[test]
     pub fn attempts_to_parse_invalid_public_key_length() {
-        assert_eq!(parse_pk(&[0u8; 32]), Err(Error::InvalidInputLength));
-        assert_eq!(parse_pk(&[0u8; 34]), Err(Error::InvalidInputLength));
-    }
-
-    #[test]
-    pub fn formats_errors() {
-        let expected = [
-            (Error::InvalidPublicKey, "Invalid public key"),
-            (Error::InvalidSecretKey, "Invalid secret key"),
-            (Error::InvalidMessage, "Invalid message"),
-            (Error::InvalidInputLength, "Invalid input length"),
-            (Error::InvalidAffine, "Invalid affine"),
-        ];
-
-        for (error, message) in expected {
-            assert_eq!(format!("{error}"), message);
-        }
-    }
-
-    #[cfg(feature = "std")]
-    #[test]
-    pub fn error_implements_std_error() {
-        let error: &dyn std::error::Error = &Error::InvalidMessage;
-        assert_eq!(format!("{error}"), "Invalid message");
+        assert_eq!(parse_pk(&[0u8; 32]), Err(Error::InvalidPublicKey));
+        assert_eq!(parse_pk(&[0u8; 34]), Err(Error::InvalidPublicKey));
     }
 
     #[test]
@@ -504,7 +463,7 @@ mod error_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
 #[allow(deprecated)]
 mod config_tests {
     use super::generate_keypair;
@@ -667,7 +626,7 @@ mod config_tests {
     }
 }
 
-#[cfg(all(test, target_arch = "wasm32"))]
+#[cfg(all(test, target_arch = "wasm32", not(any(feature = "x25519", feature = "ed25519"))))]
 mod wasm_tests {
     use wasm_bindgen_test::*;
 

@@ -1,5 +1,10 @@
 pub use crate::consts::SharedSecret;
-pub use crate::elliptic::{decapsulate, encapsulate, generate_keypair};
+/// The default curve's, [`secp256k1::decapsulate`](crate::secp256k1::decapsulate)
+pub use crate::elliptic::secp256k1::decapsulate;
+/// The default curve's, [`secp256k1::encapsulate`](crate::secp256k1::encapsulate)
+pub use crate::elliptic::secp256k1::encapsulate;
+/// The default curve's, [`secp256k1::generate_keypair`](crate::secp256k1::generate_keypair)
+pub use crate::elliptic::secp256k1::generate_keypair;
 
 #[cfg(test)]
 pub mod tests {

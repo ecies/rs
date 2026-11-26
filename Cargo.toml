@@ -33,6 +33,8 @@ x25519-dalek = { version = "3.0.0", default-features = false, features = [
   "static_secrets",
 ], optional = true }
 ed25519-dalek = { version = "3.0.0", default-features = false, optional = true } # msrv 1.85
+# compares ed25519 secret keys in constant time
+subtle = { version = "2.6.1", default-features = false, optional = true }
 
 # symmetric ciphers
 # aes (openssl)
@@ -79,8 +81,11 @@ std = ["once_cell/std", "dep:parking_lot"]
 # curves
 # no usage, TODO: make optional from 0.3.0: secp256k1 = ["dep:k256"]
 secp256k1 = []
-x25519 = ["dep:curve25519-dalek", "dep:x25519-dalek"]
-ed25519 = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
+# the `ecies::x25519` and `ecies::ed25519` modules
+curve25519 = ["dep:curve25519-dalek", "dep:x25519-dalek", "dep:ed25519-dalek", "dep:subtle"]
+# pick the curve `encrypt` and `decrypt` use, until `Config` does
+x25519 = ["curve25519"]
+ed25519 = ["curve25519"]
 
 # zeroize
 zeroize = ["x25519-dalek?/zeroize", "ed25519-dalek?/zeroize"]

@@ -16,17 +16,25 @@ pub mod utils;
 
 mod compat;
 mod elliptic;
+mod error;
 mod symmetric;
 
 #[cfg(not(feature = "std"))]
 mod sync;
 
 use config::{Config, global_config};
-use elliptic::{Error, decapsulate, encapsulate_with_sender, generate_keypair, parse_pk, parse_sk, pk_to_vec};
+use elliptic::feature_curve::{decapsulate, encapsulate_with_sender, generate_keypair, parse_pk, parse_sk, pk_to_vec};
 use symmetric::{FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH, sym_decrypt, sym_encrypt_into};
 
 use crate::compat::Vec;
-pub use elliptic::{PublicKey, SecretKey};
+pub use elliptic::secp256k1;
+#[cfg(feature = "curve25519")]
+pub use elliptic::{ed25519, x25519};
+pub use error::Error;
+/// The default curve's public key, [`secp256k1::PublicKey`]
+pub use secp256k1::PublicKey;
+/// The default curve's secret key, [`secp256k1::SecretKey`]
+pub use secp256k1::SecretKey;
 
 /// Encrypt a message by a public key, with the global config
 ///

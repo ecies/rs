@@ -86,7 +86,10 @@ fn test_aad() {
 fn ignores_compression_flags_on_curve25519() {
     use ecies::config::Config;
     use ecies::consts::PUBLIC_KEY_SIZE;
-    use ecies::utils::generate_keypair;
+    #[cfg(feature = "ed25519")]
+    use ecies::ed25519::generate_keypair;
+    #[cfg(feature = "x25519")]
+    use ecies::x25519::generate_keypair;
     use ecies::{decrypt_with_config, encrypt_with_config};
 
     const COMPRESSED: Config = Config {
@@ -99,7 +102,7 @@ fn ignores_compression_flags_on_curve25519() {
     #[cfg(feature = "x25519")]
     let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
     #[cfg(feature = "ed25519")]
-    let (sk, pk) = (&sk, &pk);
+    let (sk, pk) = (sk.as_bytes(), &pk);
 
     for (encrypt_config, decrypt_config) in [
         (COMPRESSED, Config::DEFAULT),

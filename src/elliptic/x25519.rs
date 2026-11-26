@@ -3,25 +3,10 @@ use rand_core::UnwrapErr;
 
 pub use x25519_dalek::{PublicKey, StaticSecret as SecretKey};
 
+use crate::Error;
 use crate::compat::Vec;
-use crate::consts::{PUBLIC_KEY_SIZE, SharedSecret};
+use crate::consts::{CURVE25519_PUBLIC_KEY_SIZE as PUBLIC_KEY_SIZE, SharedSecret};
 use crate::symmetric::hkdf_derive;
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Error {
-    InvalidMessage,
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::InvalidMessage => write!(f, "Invalid message"),
-        }
-    }
-}
 
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
@@ -58,28 +43,29 @@ fn diffie_hellman(sk: &SecretKey, pk: &PublicKey) -> Result<x25519_dalek::Shared
     if shared_point.was_contributory() {
         Ok(shared_point)
     } else {
-        Err(Error::InvalidMessage)
+        Err(Error::InvalidPublicKey)
     }
 }
 
 /// Parse secret key bytes
-pub fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
-    let data: [u8; PUBLIC_KEY_SIZE] = sk.try_into().map_err(|_| Error::InvalidMessage)?;
+pub(crate) fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
+    let data: [u8; 32] = sk.try_into().map_err(|_| Error::InvalidSecretKey)?;
     Ok(SecretKey::from(data))
 }
 
 /// Parse public key bytes
-pub fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
-    let data: [u8; PUBLIC_KEY_SIZE] = pk.try_into().map_err(|_| Error::InvalidMessage)?;
+pub(crate) fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
+    let data: [u8; PUBLIC_KEY_SIZE] = pk.try_into().map_err(|_| Error::InvalidPublicKey)?;
     Ok(PublicKey::from(data))
 }
 
 /// Public key to bytes
-pub fn pk_to_vec(pk: &PublicKey, _compressed: bool) -> Vec<u8> {
+pub(crate) fn pk_to_vec(pk: &PublicKey, _compressed: bool) -> Vec<u8> {
     pk.as_bytes().to_vec()
 }
 
-#[cfg(test)]
+// these tests go through `encrypt` and `decrypt`, so they run when the features pick X25519
+#[cfg(all(test, feature = "x25519"))]
 mod random_tests {
     use super::generate_keypair;
     use crate::{decrypt, encrypt};
@@ -112,7 +98,7 @@ mod random_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "x25519"))]
 mod known_tests {
     use super::{parse_pk, parse_sk};
 
@@ -167,30 +153,20 @@ mod known_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "x25519"))]
 mod error_tests {
-    use super::{Error, generate_keypair};
-    use crate::{consts::ZERO_SECRET, decrypt, encrypt};
-
-    #[cfg(not(feature = "std"))]
-    use alloc::format;
-    #[cfg(feature = "std")]
-    use std::format;
+    use super::generate_keypair;
+    use crate::{Error, consts::ZERO_SECRET, decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
-
-    #[test]
-    fn test_error_fmt() {
-        assert_eq!(format!("{}", Error::InvalidMessage), "Invalid message");
-    }
 
     #[test]
     pub fn rejects_invalid_key_lengths() {
         let invalid_keys: [&[u8]; 3] = [&[], &[0u8; 31], &[0u8; 33]];
 
         for key in invalid_keys {
-            assert_eq!(encrypt(key, MSG.as_bytes()), Err(Error::InvalidMessage));
-            assert_eq!(decrypt(key, &[]), Err(Error::InvalidMessage));
+            assert_eq!(encrypt(key, MSG.as_bytes()), Err(Error::InvalidPublicKey));
+            assert_eq!(decrypt(key, &[]), Err(Error::InvalidSecretKey));
         }
     }
 
@@ -219,10 +195,11 @@ mod error_tests {
 }
 
 /// #180: a low-order public key makes the shared point all zeros, so anyone can decrypt
-#[cfg(test)]
+#[cfg(all(test, feature = "x25519"))]
 mod small_order_tests {
-    use super::{Error, PublicKey, decapsulate, encapsulate, generate_keypair, parse_pk};
-    use crate::consts::{PUBLIC_KEY_SIZE, ZERO_SECRET};
+    use super::{PUBLIC_KEY_SIZE, PublicKey, decapsulate, encapsulate, generate_keypair, parse_pk};
+    use crate::Error;
+    use crate::consts::ZERO_SECRET;
     use crate::symmetric::{FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH, hkdf_derive, sym_encrypt_into};
     use crate::utils::tests::decode_hex;
     use crate::{compat::Vec, decrypt, encrypt};
@@ -270,10 +247,10 @@ mod small_order_tests {
     pub fn rejects_low_order_public_keys() {
         let (sk, _) = generate_keypair();
         for pk in low_order_encodings() {
-            assert_eq!(encrypt(&pk, MSG), Err(Error::InvalidMessage));
+            assert_eq!(encrypt(&pk, MSG), Err(Error::InvalidPublicKey));
             assert_eq!(
                 encapsulate(&sk, &parse_pk(&pk).unwrap(), false),
-                Err(Error::InvalidMessage)
+                Err(Error::InvalidPublicKey)
             );
         }
     }
@@ -291,14 +268,14 @@ mod small_order_tests {
             let ephemeral = parse_pk(&bytes).unwrap();
             assert_eq!(
                 decrypt(sk.as_bytes(), &forge(&ephemeral, &ZERO_SECRET)),
-                Err(Error::InvalidMessage)
+                Err(Error::InvalidPublicKey)
             );
-            assert_eq!(decapsulate(&ephemeral, &sk, false), Err(Error::InvalidMessage));
+            assert_eq!(decapsulate(&ephemeral, &sk, false), Err(Error::InvalidPublicKey));
         }
     }
 }
 
-#[cfg(all(test, target_arch = "wasm32"))]
+#[cfg(all(test, target_arch = "wasm32", feature = "x25519"))]
 mod wasm_tests {
     use wasm_bindgen_test::*;
 

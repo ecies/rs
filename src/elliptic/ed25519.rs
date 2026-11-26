@@ -4,37 +4,55 @@ use curve25519_dalek::{constants::ED25519_BASEPOINT_POINT as G, edwards::Compres
 use ed25519_dalek::SigningKey;
 use getrandom::SysRng;
 use rand_core::UnwrapErr;
+use subtle::ConstantTimeEq;
 
-pub use ed25519_dalek::SecretKey;
-
+use crate::Error;
 use crate::compat::Vec;
-use crate::consts::{PUBLIC_KEY_SIZE, SharedSecret};
+use crate::consts::{CURVE25519_PUBLIC_KEY_SIZE as PUBLIC_KEY_SIZE, SharedSecret};
 use crate::symmetric::hkdf_derive;
 
-pub type PublicKey = [u8; PUBLIC_KEY_SIZE];
+/// An Ed25519 secret key: the 32-byte seed RFC 8032 hashes into the scalar
+#[derive(Clone)]
+pub struct SecretKey([u8; 32]);
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Error {
-    InvalidPublicKey,
-    InvalidMessage,
-}
+impl SecretKey {
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
 
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::InvalidPublicKey => write!(f, "Invalid public key"),
-            Error::InvalidMessage => write!(f, "Invalid message"),
-        }
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
     }
 }
 
+impl From<[u8; 32]> for SecretKey {
+    fn from(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+}
+
+impl core::fmt::Debug for SecretKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("SecretKey").finish_non_exhaustive()
+    }
+}
+
+// in constant time, so the time taken doesn't reveal how many leading bytes match
+impl PartialEq for SecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.as_slice().ct_eq(other.0.as_slice()).into()
+    }
+}
+
+impl Eq for SecretKey {}
+
+pub type PublicKey = [u8; PUBLIC_KEY_SIZE];
+
 /// Generate a `(SecretKey, PublicKey)` pair
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let sk: SecretKey = Generate::generate_from_rng(&mut UnwrapErr(SysRng));
-    (sk, to_public_key(&sk).to_bytes())
+    let sk = SecretKey(Generate::generate_from_rng(&mut UnwrapErr(SysRng)));
+    let pk = to_public_key(&sk).to_bytes();
+    (sk, pk)
 }
 
 /// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
@@ -60,17 +78,19 @@ pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, _compressed: bool) -> Re
 }
 
 /// Parse secret key bytes
-pub fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
-    sk.try_into().map_err(|_| Error::InvalidMessage)
+pub(crate) fn parse_sk(sk: &[u8]) -> Result<SecretKey, Error> {
+    <[u8; 32]>::try_from(sk)
+        .map(SecretKey)
+        .map_err(|_| Error::InvalidSecretKey)
 }
 
 /// Parse public key bytes
-pub fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
+pub(crate) fn parse_pk(pk: &[u8]) -> Result<PublicKey, Error> {
     pk.try_into().map_err(|_| Error::InvalidPublicKey)
 }
 
 /// Public key to bytes
-pub fn pk_to_vec(pk: &PublicKey, _compressed: bool) -> Vec<u8> {
+pub(crate) fn pk_to_vec(pk: &PublicKey, _compressed: bool) -> Vec<u8> {
     pk.to_vec()
 }
 
@@ -89,8 +109,8 @@ fn multiply(sk: &SecretKey, pk: &PublicKey) -> Result<EdwardsPoint, Error> {
     Ok(point.mul_clamped(to_scalar(sk)))
 }
 
-fn to_scalar(sk: &SecretKey) -> SecretKey {
-    SigningKey::from_bytes(sk).to_scalar_bytes()
+fn to_scalar(sk: &SecretKey) -> [u8; 32] {
+    SigningKey::from_bytes(&sk.0).to_scalar_bytes()
 }
 
 fn to_public_key(sk: &SecretKey) -> CompressedEdwardsY {
@@ -98,7 +118,8 @@ fn to_public_key(sk: &SecretKey) -> CompressedEdwardsY {
     G.mul_clamped(scalar).compress()
 }
 
-#[cfg(test)]
+// these tests go through `encrypt` and `decrypt`, so they run when the features pick Ed25519
+#[cfg(all(test, feature = "ed25519"))]
 mod known_tests {
     use super::{multiply, parse_pk, parse_sk};
 
@@ -159,7 +180,7 @@ mod known_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ed25519"))]
 mod random_tests {
     use super::generate_keypair;
     use crate::{decrypt, encrypt};
@@ -187,28 +208,17 @@ mod random_tests {
     #[test]
     pub fn test_random() {
         let (sk, pk) = generate_keypair();
-        test_enc_dec(&sk, &pk);
+        test_enc_dec(sk.as_bytes(), &pk);
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ed25519"))]
 mod error_tests {
-    use super::{Error, generate_keypair};
+    use super::generate_keypair;
     use crate::consts::ZERO_SECRET;
-    use crate::{decrypt, encrypt};
-
-    #[cfg(not(feature = "std"))]
-    use alloc::format;
-    #[cfg(feature = "std")]
-    use std::format;
+    use crate::{Error, decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
-
-    #[test]
-    fn test_error_fmt() {
-        assert_eq!(format!("{}", Error::InvalidMessage), "Invalid message");
-        assert_eq!(format!("{}", Error::InvalidPublicKey), "Invalid public key");
-    }
 
     #[test]
     pub fn rejects_invalid_key_lengths() {
@@ -216,7 +226,7 @@ mod error_tests {
 
         for key in invalid_keys {
             assert_eq!(encrypt(key, MSG.as_bytes()), Err(Error::InvalidPublicKey));
-            assert_eq!(decrypt(key, &[]), Err(Error::InvalidMessage));
+            assert_eq!(decrypt(key, &[]), Err(Error::InvalidSecretKey));
         }
     }
 
@@ -229,9 +239,9 @@ mod error_tests {
     pub fn attempts_to_decrypt_incorrect_message() {
         let (sk, pk) = generate_keypair();
 
-        assert_eq!(decrypt(&sk, &[]), Err(Error::InvalidMessage));
+        assert_eq!(decrypt(sk.as_bytes(), &[]), Err(Error::InvalidMessage));
         // a valid ephemeral key with nothing after it
-        assert_eq!(decrypt(&sk, &pk), Err(Error::InvalidMessage));
+        assert_eq!(decrypt(sk.as_bytes(), &pk), Err(Error::InvalidMessage));
     }
 
     #[test]
@@ -240,19 +250,20 @@ mod error_tests {
         let (sk2, _) = generate_keypair();
 
         let encrypted = encrypt(&pk1, MSG.as_bytes()).unwrap();
-        assert_eq!(decrypt(&sk2, &encrypted), Err(Error::InvalidMessage));
+        assert_eq!(decrypt(sk2.as_bytes(), &encrypted), Err(Error::InvalidMessage));
     }
 }
 
 /// #180: a small-order public key makes the shared point the identity, so anyone can decrypt. Mixed-order keys are
 /// refused too, as ecies/js#922 proposes for eciesjs
-#[cfg(test)]
+#[cfg(all(test, feature = "ed25519"))]
 mod small_order_tests {
     use curve25519_dalek::{
         EdwardsPoint, constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY, scalar::Scalar,
     };
 
-    use super::{Error, PUBLIC_KEY_SIZE, PublicKey, decapsulate, encapsulate, generate_keypair};
+    use super::{PUBLIC_KEY_SIZE, PublicKey, decapsulate, encapsulate, generate_keypair};
+    use crate::Error;
     use crate::symmetric::{FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH, hkdf_derive, sym_encrypt_into};
     use crate::utils::tests::decode_hex;
     use crate::{compat::Vec, decrypt, encrypt};
@@ -346,7 +357,7 @@ mod small_order_tests {
         let (sk, _) = generate_keypair();
         for ephemeral in small_order_encodings() {
             assert_eq!(
-                decrypt(&sk, &forge(&ephemeral, &identity)),
+                decrypt(sk.as_bytes(), &forge(&ephemeral, &identity)),
                 Err(Error::InvalidPublicKey)
             );
             assert_eq!(decapsulate(&ephemeral, &sk, false), Err(Error::InvalidPublicKey));
@@ -361,18 +372,18 @@ mod small_order_tests {
         let shared_point = (CompressedEdwardsY(pk).decompress().unwrap() * r).compress().to_bytes();
 
         let honest = (G * r).compress().to_bytes();
-        assert_eq!(decrypt(&sk, &forge(&honest, &shared_point)).unwrap(), MSG);
+        assert_eq!(decrypt(sk.as_bytes(), &forge(&honest, &shared_point)).unwrap(), MSG);
 
         for ephemeral in mixed_order_keys(&honest) {
             assert_eq!(
-                decrypt(&sk, &forge(&ephemeral, &shared_point)),
+                decrypt(sk.as_bytes(), &forge(&ephemeral, &shared_point)),
                 Err(Error::InvalidPublicKey)
             );
         }
     }
 }
 
-#[cfg(all(test, target_arch = "wasm32"))]
+#[cfg(all(test, target_arch = "wasm32", feature = "ed25519"))]
 mod wasm_tests {
     use wasm_bindgen_test::*;
 
