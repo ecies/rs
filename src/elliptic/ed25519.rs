@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crypto_common::Generate;
 use curve25519_dalek::EdwardsPoint;
 use curve25519_dalek::{constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY};
@@ -5,9 +7,9 @@ use ed25519_dalek::SigningKey;
 use getrandom::SysRng;
 use rand_core::UnwrapErr;
 use subtle::ConstantTimeEq;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::Error;
-use crate::compat::Vec;
 use crate::consts::{CURVE25519_PUBLIC_KEY_SIZE as PUBLIC_KEY_SIZE, SharedSecret};
 use crate::symmetric::hkdf_derive;
 
@@ -46,6 +48,22 @@ impl PartialEq for SecretKey {
 
 impl Eq for SecretKey {}
 
+impl Zeroize for SecretKey {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl Drop for SecretKey {
+    fn drop(&mut self) {
+        // through `zeroize`, whose volatile writes the compiler keeps. A plain `self.0 = [0; 32]` is a dead store it
+        // may remove, though tests/curve_modules.rs can't tell, since it reads the bytes back
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for SecretKey {}
+
 pub type PublicKey = [u8; PUBLIC_KEY_SIZE];
 
 /// Generate a `(SecretKey, PublicKey)` pair
@@ -55,8 +73,8 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
     (sk, pk)
 }
 
-/// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, compressed: bool) -> Result<SharedSecret, Error> {
+/// Calculate a shared symmetric key of our secret key and peer's public key by hkdf. The key clears its bytes on drop
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, compressed: bool) -> Result<Zeroizing<SharedSecret>, Error> {
     encapsulate_with_sender(sk, &to_public_key(sk).to_bytes(), peer_pk, compressed)
 }
 
@@ -66,13 +84,13 @@ pub(crate) fn encapsulate_with_sender(
     sender_pk: &PublicKey,
     peer_pk: &PublicKey,
     _compressed: bool,
-) -> Result<SharedSecret, Error> {
+) -> Result<Zeroizing<SharedSecret>, Error> {
     let shared_point = multiply(sk, peer_pk)?;
     Ok(hkdf_derive(sender_pk, shared_point.compress().as_bytes()))
 }
 
-/// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, _compressed: bool) -> Result<SharedSecret, Error> {
+/// Calculate a shared symmetric key of our public key and peer's secret key by hkdf. The key clears its bytes on drop
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, _compressed: bool) -> Result<Zeroizing<SharedSecret>, Error> {
     let shared_point = multiply(peer_sk, pk)?;
     Ok(hkdf_derive(pk, shared_point.compress().as_bytes()))
 }
@@ -118,13 +136,38 @@ fn to_public_key(sk: &SecretKey) -> CompressedEdwardsY {
     G.mul_clamped(scalar).compress()
 }
 
-// these tests go through `encrypt` and `decrypt`, so they run when the features pick Ed25519
-#[cfg(all(test, feature = "ed25519"))]
+/// `encrypt` and `decrypt` on Ed25519, with the other settings at their defaults
+#[cfg(test)]
+mod on_curve {
+    use alloc::vec::Vec;
+
+    use crate::{Config, EllipticCurve, Error, NonceLength, SymmetricAlgorithm};
+
+    // every field, so the known answers don't depend on `Config::new`
+    pub(super) const CONFIG: Config = Config {
+        elliptic_curve: EllipticCurve::Ed25519,
+        is_ephemeral_key_compressed: false,
+        is_hkdf_key_compressed: false,
+        symmetric_algorithm: SymmetricAlgorithm::Aes256Gcm,
+        symmetric_nonce_length: NonceLength::Sixteen,
+    };
+
+    pub(super) fn encrypt(pk: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
+        crate::encrypt_with_config(pk, msg, &[], &CONFIG)
+    }
+
+    pub(super) fn decrypt(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>, Error> {
+        crate::decrypt_with_config(sk, msg, &[], &CONFIG)
+    }
+}
+
+#[cfg(test)]
 mod known_tests {
+    use super::on_curve::CONFIG;
     use super::{multiply, parse_pk, parse_sk};
 
-    use crate::decrypt;
     use crate::utils::tests::decode_hex;
+    use crate::{Config, NonceLength, SymmetricAlgorithm, decrypt_with_config};
 
     fn test_known(sk: &str, pk: &str, shared: &str) {
         let sk = parse_sk(&decode_hex(sk)).unwrap();
@@ -149,41 +192,44 @@ mod known_tests {
         );
     }
 
+    /// One payload per cipher, made by the 0.2 builds with each feature
     #[test]
-    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
     pub fn test_known_encrypted() {
-        let sk = decode_hex("8be70d30035b24e13377678a3f612cf72333327ff2865def5544ea877ff50c82");
-        let encrypted = decode_hex(
-            "2c82dd9f8525e0f430e3e548817d4aa990e14c2732bc828aaf837e8a06a797845e1928fa4edd620fd6a966915e8a6f2b57236098f666156f34f86a8e2fbaeba3c7fb8572838464f0fb036f59da75db",
-        );
-        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
-    }
+        let payloads = [
+            (
+                CONFIG,
+                "8be70d30035b24e13377678a3f612cf72333327ff2865def5544ea877ff50c82",
+                "2c82dd9f8525e0f430e3e548817d4aa990e14c2732bc828aaf837e8a06a797845e1928fa4edd620fd6a966915e8a6f2b57236098f666156f34f86a8e2fbaeba3c7fb8572838464f0fb036f59da75db",
+            ),
+            (
+                Config {
+                    symmetric_nonce_length: NonceLength::Twelve,
+                    ..CONFIG
+                },
+                "558eee18659895fc5f2acaef8ca78856cbfd25a33934302a0994eedd43dda03e",
+                "37762d915f19e2aba8a36695b7a9aefffe40837ba19b2e7bbbfa905fe31e50416bde970c71ffbc96c279235015f6a6c258e58c8161446aeee8bb15857a3681eb0afa1b2a19c7070ca5280b",
+            ),
+            (
+                Config {
+                    symmetric_algorithm: SymmetricAlgorithm::XChaCha20,
+                    ..CONFIG
+                },
+                "b39f66f08a6a56816d55a55bb61c5013be547f3018f363046be5433be3a112c3",
+                "966a90cdd649b65b04ed1879c483ae001a1ec8dc03892c430adc95310d665af06ad3561d413a99ce8b1405a19c313330ec8a05f5f271eb770a55bcad345303b65c9558a1a739a345b7bfb778540318d0cbfe20d400ebfe",
+            ),
+        ];
 
-    #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
-    #[test]
-    pub fn test_known_encrypted_short_nonce() {
-        let sk = decode_hex("558eee18659895fc5f2acaef8ca78856cbfd25a33934302a0994eedd43dda03e");
-        let encrypted = decode_hex(
-            "37762d915f19e2aba8a36695b7a9aefffe40837ba19b2e7bbbfa905fe31e50416bde970c71ffbc96c279235015f6a6c258e58c8161446aeee8bb15857a3681eb0afa1b2a19c7070ca5280b",
-        );
-        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
-    }
-
-    #[cfg(feature = "xchacha20")]
-    #[test]
-    pub fn test_known_encrypted_xchacha20() {
-        let sk = decode_hex("b39f66f08a6a56816d55a55bb61c5013be547f3018f363046be5433be3a112c3");
-        let encrypted = decode_hex(
-            "966a90cdd649b65b04ed1879c483ae001a1ec8dc03892c430adc95310d665af06ad3561d413a99ce8b1405a19c313330ec8a05f5f271eb770a55bcad345303b65c9558a1a739a345b7bfb778540318d0cbfe20d400ebfe",
-        );
-        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
+        for (config, sk, encrypted) in payloads {
+            let decrypted = decrypt_with_config(&decode_hex(sk), &decode_hex(encrypted), &[], &config);
+            assert_eq!(decrypted.as_deref(), Ok("hello world🌍".as_bytes()), "{config:?}");
+        }
     }
 }
 
-#[cfg(all(test, feature = "ed25519"))]
+#[cfg(test)]
 mod random_tests {
     use super::generate_keypair;
-    use crate::{decrypt, encrypt};
+    use super::on_curve::{decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
     const BIG_MSG_SIZE: usize = 2 * 1024 * 1024; // 2 MB
@@ -212,11 +258,12 @@ mod random_tests {
     }
 }
 
-#[cfg(all(test, feature = "ed25519"))]
+#[cfg(test)]
 mod error_tests {
     use super::generate_keypair;
+    use super::on_curve::{decrypt, encrypt};
+    use crate::Error;
     use crate::consts::ZERO_SECRET;
-    use crate::{Error, decrypt, encrypt};
 
     const MSG: &str = "hello world🌍";
 
@@ -254,19 +301,44 @@ mod error_tests {
     }
 }
 
+/// Secret keys clear their bytes on `zeroize()`, and are marked `ZeroizeOnDrop` as the x25519 keys are. The drop
+/// itself needs `unsafe` to observe, so `tests/curve_modules.rs` checks it
+#[cfg(test)]
+mod zeroize_tests {
+    use zeroize::{Zeroize, ZeroizeOnDrop};
+
+    use super::SecretKey;
+
+    #[test]
+    pub fn zeroizes_secret_keys() {
+        let mut sk = SecretKey::from([0x42; 32]);
+        sk.zeroize();
+        assert_eq!(sk.to_bytes(), [0; 32]);
+    }
+
+    #[test]
+    pub fn marks_secret_keys_zeroize_on_drop() {
+        fn zeroize_on_drop<T: ZeroizeOnDrop>() {}
+        zeroize_on_drop::<SecretKey>();
+        zeroize_on_drop::<super::super::x25519::SecretKey>();
+    }
+}
+
 /// #180: a small-order public key makes the shared point the identity, so anyone can decrypt. Mixed-order keys are
 /// refused too, as ecies/js#922 proposes for eciesjs
-#[cfg(all(test, feature = "ed25519"))]
+#[cfg(test)]
 mod small_order_tests {
+    use alloc::vec::Vec;
+
     use curve25519_dalek::{
         EdwardsPoint, constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY, scalar::Scalar,
     };
 
+    use super::on_curve::{CONFIG, decrypt, encrypt};
     use super::{PUBLIC_KEY_SIZE, PublicKey, decapsulate, encapsulate, generate_keypair};
     use crate::Error;
-    use crate::symmetric::{FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH, hkdf_derive, sym_encrypt_into};
+    use crate::symmetric::{hkdf_derive, sym_encrypt_into};
     use crate::utils::tests::decode_hex;
-    use crate::{compat::Vec, decrypt, encrypt};
 
     const MSG: &[u8] = b"hello world";
 
@@ -327,7 +399,15 @@ mod small_order_tests {
     fn forge(ephemeral: &PublicKey, shared_point: &[u8; PUBLIC_KEY_SIZE]) -> Vec<u8> {
         let mut payload = ephemeral.to_vec();
         let key = hkdf_derive(ephemeral, shared_point);
-        sym_encrypt_into(&mut payload, &key, MSG, &[], FEATURE_ALGORITHM, FEATURE_NONCE_LENGTH).unwrap();
+        sym_encrypt_into(
+            &mut payload,
+            key.as_slice(),
+            MSG,
+            &[],
+            CONFIG.symmetric_algorithm,
+            CONFIG.symmetric_nonce_length,
+        )
+        .unwrap();
         payload
     }
 
@@ -383,7 +463,7 @@ mod small_order_tests {
     }
 }
 
-#[cfg(all(test, target_arch = "wasm32", feature = "ed25519"))]
+#[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
     use wasm_bindgen_test::*;
 
@@ -404,12 +484,7 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn test_known() {
         super::known_tests::test_known_shared_point();
-        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
         super::known_tests::test_known_encrypted();
-        #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
-        super::known_tests::test_known_encrypted_short_nonce();
-        #[cfg(feature = "xchacha20")]
-        super::known_tests::test_known_encrypted_xchacha20();
     }
 
     #[wasm_bindgen_test]
@@ -418,5 +493,11 @@ mod wasm_tests {
         super::error_tests::attempts_to_decrypt_with_invalid_key();
         super::error_tests::attempts_to_decrypt_incorrect_message();
         super::error_tests::attempts_to_decrypt_with_another_key();
+    }
+
+    #[wasm_bindgen_test]
+    fn test_zeroize() {
+        super::zeroize_tests::zeroizes_secret_keys();
+        super::zeroize_tests::marks_secret_keys_zeroize_on_drop();
     }
 }

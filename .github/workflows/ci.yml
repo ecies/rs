@@ -31,6 +31,7 @@ jobs:
           components: rustfmt, clippy, llvm-tools-preview
 
       - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@cargo-hack
 
       - run: cargo generate-lockfile
 
@@ -57,8 +58,9 @@ jobs:
         run: cargo fmt --check
       - name: Check and run lint
         run: sh ./scripts/check-all.sh
+      # the features docs.rs builds with, from Cargo.toml's [package.metadata.docs.rs]
       - name: Check doc
-        run: cargo doc --no-deps
+        run: cargo doc --no-deps --features curve25519,aes-openssl
 
       # wasm-bindgen-test-runner must match the locked wasm-bindgen exactly; versions missing from install-action's manifest fall back to cargo-binstall
       - name: Get wasm-bindgen version
@@ -72,9 +74,10 @@ jobs:
       - name: Test
         run: sh ./scripts/test-all.sh
 
-      # messages over 2 GiB need about 4 GB of memory and are too slow in debug builds, so these tests are ignored there
+      # messages over 2 GiB need about 4 GB of memory and are too slow in debug builds, so these tests are ignored there.
+      # The limit they check is OpenSSL's (#174), and pure Rust is the default backend, so enable aes-openssl
       - name: Test large messages (release)
-        run: cargo test --release --test large_messages
+        run: cargo test --release --features aes-openssl --test large_messages
         if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
 
       - name: Coverage
@@ -105,11 +108,11 @@ jobs:
       - run: cargo generate-lockfile
       - uses: Swatinem/rust-cache@v2
 
-      - run: cargo build --no-default-features --features aes-openssl
+      - run: cargo build --features aes-openssl
         if: matrix.os != 'windows-latest'
-      - run: cargo build --no-default-features --features aes-rust
-      - run: cargo build --no-default-features --features aes-rust,x25519
-      - run: cargo build --no-default-features --features aes-rust,ed25519
+      - run: cargo build
+      - run: cargo build --features curve25519,std
+      - run: cargo build --no-default-features --features curve25519
 
   semver-checks:
     runs-on: ubuntu-latest
@@ -125,10 +128,8 @@ jobs:
 
       - uses: taiki-e/install-action@cargo-semver-checks
 
-      # Check public API compatibility against the latest release on crates.io.
-      # Curve features are mutually exclusive, so each curve is checked separately.
+      # Check public API compatibility against the latest release on crates.io. Until 0.3.0 is there, that is 0.2.16,
+      # which has no `curve25519` feature, so only the current version enables it. Once 0.3.0 is out, move
+      # `curve25519` into `--features`
       - name: Check semver compatibility
-        run: |
-          cargo semver-checks --only-explicit-features --features aes-openssl,std
-          cargo semver-checks --only-explicit-features --features x25519,aes-openssl,std
-          cargo semver-checks --only-explicit-features --features ed25519,aes-openssl,std
+        run: cargo semver-checks --only-explicit-features --features secp256k1,aes-openssl,std --current-features curve25519

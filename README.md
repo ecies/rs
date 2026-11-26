@@ -29,22 +29,12 @@ Without `std`, ecies needs a [`critical-section`](https://crates.io/crates/criti
 The feature snippets further down leave `std` out for brevity, so add it on targets with the standard library.
 
 ```rust
-use ecies::{decrypt, encrypt};
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 use ecies::secp256k1::generate_keypair;
-#[cfg(feature = "x25519")]
-use ecies::x25519::generate_keypair;
-#[cfg(feature = "ed25519")]
-use ecies::ed25519::generate_keypair;
+use ecies::{decrypt, encrypt};
 
 const MSG: &str = "hello world🌍";
 let (sk, pk) = generate_keypair();
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 let (sk, pk) = (&sk.serialize(), &pk.serialize());
-#[cfg(feature = "x25519")]
-let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
-#[cfg(feature = "ed25519")]
-let (sk, pk) = (sk.as_bytes(), &pk);
 
 let msg = MSG.as_bytes();
 assert_eq!(
@@ -60,21 +50,11 @@ The ciphertext doesn't include the name, so pass it again when you decrypt the v
 If someone swaps two entries, neither value will decrypt under the other entry's name.
 
 ```rust
-use ecies::{config::Config, decrypt_with_config, encrypt_with_config};
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 use ecies::secp256k1::generate_keypair;
-#[cfg(feature = "x25519")]
-use ecies::x25519::generate_keypair;
-#[cfg(feature = "ed25519")]
-use ecies::ed25519::generate_keypair;
+use ecies::{Config, decrypt_with_config, encrypt_with_config};
 
 let (sk, pk) = generate_keypair();
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 let (sk, pk) = (&sk.serialize(), &pk.serialize());
-#[cfg(feature = "x25519")]
-let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
-#[cfg(feature = "ed25519")]
-let (sk, pk) = (sk.as_bytes(), &pk);
 
 let encrypted = encrypt_with_config(pk, b"msg", b"DATABASE_PASSWORD", &Config::DEFAULT).unwrap();
 assert_eq!(
@@ -117,13 +97,8 @@ On `is_hkdf_key_compressed: true`, the hkdf key would be derived from `ephemeral
 Pass the config to `encrypt_with_config` and `decrypt_with_config`, with empty AAD if you don't need any:
 
 ```rust
-use ecies::{config::Config, decrypt_with_config, encrypt_with_config};
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 use ecies::secp256k1::generate_keypair;
-#[cfg(feature = "x25519")]
-use ecies::x25519::generate_keypair;
-#[cfg(feature = "ed25519")]
-use ecies::ed25519::generate_keypair;
+use ecies::{Config, decrypt_with_config, encrypt_with_config};
 
 const CONFIG: Config = Config {
     is_ephemeral_key_compressed: true,
@@ -131,12 +106,7 @@ const CONFIG: Config = Config {
 };
 
 let (sk, pk) = generate_keypair();
-#[cfg(all(not(feature = "x25519"), not(feature = "ed25519")))]
 let (sk, pk) = (&sk.serialize(), &pk.serialize());
-#[cfg(feature = "x25519")]
-let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
-#[cfg(feature = "ed25519")]
-let (sk, pk) = (sk.as_bytes(), &pk);
 
 let encrypted = encrypt_with_config(pk, b"msg", b"", &CONFIG).unwrap();
 assert_eq!(b"msg", decrypt_with_config(sk, &encrypted, b"", &CONFIG).unwrap().as_slice());

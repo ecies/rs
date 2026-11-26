@@ -1,16 +1,18 @@
 //! rust-openssl takes at most `i32::MAX` bytes per call, including calls that pass AAD.
 //! Messages over that limit used to panic. See <https://github.com/ecies/rs/issues/174>.
 //!
-//! Run these with `cargo test --release` on a machine with about 4 GiB of memory to spare.
+//! Run these with `cargo test --release --features aes-openssl --test large_messages` on a machine with about 4 GiB of
+//! memory to spare. Without `aes-openssl`, they run on pure Rust AES, and the AAD test is compiled out.
 //! Only 64-bit targets can hold such messages. The bug is in the AES layer, so the default curve is enough.
-#![cfg(all(target_pointer_width = "64", not(feature = "x25519"), not(feature = "ed25519")))]
+#![cfg(all(target_pointer_width = "64", feature = "secp256k1"))]
 
 use ecies::config::Config;
-use ecies::consts::NONCE_TAG_LENGTH;
+use ecies::consts::AEAD_TAG_LENGTH;
 use ecies::utils::generate_keypair;
 use ecies::{decrypt, encrypt};
 
 const KEY_SIZE: usize = Config::DEFAULT.ephemeral_key_size();
+const NONCE_TAG_LENGTH: usize = Config::DEFAULT.nonce_length() + AEAD_TAG_LENGTH;
 
 /// Over `i32::MAX`, and not a multiple of the 16 bytes AES block
 const SIZE: usize = (1 << 31) + 5;

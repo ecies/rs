@@ -53,10 +53,7 @@ impl core::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "std"))]
     use alloc::format;
-    #[cfg(feature = "std")]
-    use std::format;
 
     use super::Error;
 

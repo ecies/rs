@@ -1,14 +1,18 @@
 pub use crate::consts::SharedSecret;
 /// The default curve's, [`secp256k1::decapsulate`](crate::secp256k1::decapsulate)
+#[cfg(feature = "secp256k1")]
 pub use crate::elliptic::secp256k1::decapsulate;
 /// The default curve's, [`secp256k1::encapsulate`](crate::secp256k1::encapsulate)
+#[cfg(feature = "secp256k1")]
 pub use crate::elliptic::secp256k1::encapsulate;
 /// The default curve's, [`secp256k1::generate_keypair`](crate::secp256k1::generate_keypair)
+#[cfg(feature = "secp256k1")]
 pub use crate::elliptic::secp256k1::generate_keypair;
 
 #[cfg(test)]
 pub mod tests {
-    use crate::compat::Vec;
+    use alloc::vec::Vec;
+
     use hex::decode;
 
     /// Convert hex string to u8 vector
