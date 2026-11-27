@@ -69,7 +69,8 @@ impl PublicKey {
     pub fn parse_slice(pk: &[u8], format: Option<PublicKeyFormat>) -> Result<Self, Error> {
         let bytes = match (pk.len(), format) {
             (65, None) | (65, Some(PublicKeyFormat::Full)) => pk,
-            (33, None) | (33, Some(PublicKeyFormat::Compressed)) => pk,
+            // k256 also reads `0x05`, the sec1 crate's compact form, which isn't SEC1 and names a point by x alone
+            (33, None) | (33, Some(PublicKeyFormat::Compressed)) if matches!(pk[0], 0x02 | 0x03) => pk,
             (64, None) | (64, Some(PublicKeyFormat::Raw)) => {
                 let mut full = [0u8; 65];
                 full[0] = 0x04;
