@@ -1,10 +1,5 @@
 #[test]
-#[cfg(all(
-    not(target_arch = "wasm32"),
-    all(not(feature = "x25519"), not(feature = "ed25519")),
-    not(feature = "aes-short-nonce"),
-    not(feature = "xchacha20"),
-))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "secp256k1"))]
 fn is_compatible_with_python() {
     use futures_util::FutureExt;
     use hex::{decode, encode};
@@ -56,7 +51,7 @@ fn is_compatible_with_python() {
 }
 
 #[test]
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "x25519"), not(feature = "ed25519"),))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "secp256k1"))]
 fn test_aad() {
     use ecies::config::Config;
     use ecies::utils::generate_keypair;
@@ -83,7 +78,7 @@ fn test_aad() {
 /// A 33-byte secp256k1 key starts with `0x02` or `0x03` (SEC1). k256 also reads `0x05`, the sec1 crate's compact
 /// form, which names a point by x alone, so encrypting to one could miss the receiver's key (#185)
 #[test]
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "x25519"), not(feature = "ed25519"),))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "secp256k1"))]
 fn rejects_compact_receiver_keys() {
     use ecies::secp256k1::{PublicKey, PublicKeyFormat};
     use ecies::{Error, encrypt, utils::generate_keypair};
@@ -116,7 +111,7 @@ fn rejects_compact_receiver_keys() {
 /// A payload whose compressed ephemeral key is rewritten to the compact `0x05` form decrypted whenever that form
 /// named the same point, so one message had two encodings (#185)
 #[test]
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "x25519"), not(feature = "ed25519"),))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "secp256k1"))]
 fn rejects_compact_ephemeral_keys() {
     use ecies::config::Config;
     use ecies::{Error, decrypt_with_config, encrypt_with_config, utils::generate_keypair};
@@ -142,37 +137,39 @@ fn rejects_compact_ephemeral_keys() {
 
 /// The compression flags apply to secp256k1 only
 #[test]
-#[cfg(all(not(target_arch = "wasm32"), any(feature = "x25519", feature = "ed25519")))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "curve25519"))]
 fn ignores_compression_flags_on_curve25519() {
-    use ecies::config::Config;
-    use ecies::consts::PUBLIC_KEY_SIZE;
-    #[cfg(feature = "ed25519")]
-    use ecies::ed25519::generate_keypair;
-    #[cfg(feature = "x25519")]
-    use ecies::x25519::generate_keypair;
-    use ecies::{decrypt_with_config, encrypt_with_config};
+    use ecies::{Config, EllipticCurve, NonceLength, SymmetricAlgorithm, decrypt_with_config, encrypt_with_config};
 
-    const COMPRESSED: Config = Config {
-        is_ephemeral_key_compressed: true,
-        is_hkdf_key_compressed: true,
-    };
-    assert_eq!(COMPRESSED.ephemeral_key_size(), PUBLIC_KEY_SIZE);
+    let (x25519_sk, x25519_pk) = ecies::x25519::generate_keypair();
+    let (ed25519_sk, ed25519_pk) = ecies::ed25519::generate_keypair();
+    let keys = [
+        (EllipticCurve::X25519, x25519_sk.to_bytes(), x25519_pk.to_bytes()),
+        (EllipticCurve::Ed25519, ed25519_sk.to_bytes(), ed25519_pk),
+    ];
 
-    let (sk, pk) = generate_keypair();
-    #[cfg(feature = "x25519")]
-    let (sk, pk) = (sk.as_bytes(), pk.as_bytes());
-    #[cfg(feature = "ed25519")]
-    let (sk, pk) = (sk.as_bytes(), &pk);
+    for (elliptic_curve, sk, pk) in keys {
+        let plain = Config {
+            elliptic_curve,
+            is_ephemeral_key_compressed: false,
+            is_hkdf_key_compressed: false,
+            symmetric_algorithm: SymmetricAlgorithm::Aes256Gcm,
+            symmetric_nonce_length: NonceLength::Sixteen,
+        };
+        let compressed = Config {
+            is_ephemeral_key_compressed: true,
+            is_hkdf_key_compressed: true,
+            ..plain
+        };
+        assert_eq!(compressed.ephemeral_key_size(), 32);
 
-    for (encrypt_config, decrypt_config) in [
-        (COMPRESSED, Config::DEFAULT),
-        (Config::DEFAULT, COMPRESSED),
-        (COMPRESSED, COMPRESSED),
-    ] {
-        let encrypted = encrypt_with_config(pk, b"msg", b"aad", &encrypt_config).unwrap();
-        assert_eq!(
-            decrypt_with_config(sk, &encrypted, b"aad", &decrypt_config).unwrap(),
-            b"msg"
-        );
+        for (encrypt_config, decrypt_config) in [(compressed, plain), (plain, compressed), (compressed, compressed)] {
+            let encrypted = encrypt_with_config(&pk, b"msg", b"aad", &encrypt_config).unwrap();
+            assert_eq!(
+                decrypt_with_config(&sk, &encrypted, b"aad", &decrypt_config).as_deref(),
+                Ok(b"msg".as_slice()),
+                "{elliptic_curve:?}"
+            );
+        }
     }
 }

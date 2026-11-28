@@ -3,8 +3,9 @@ use aes_gcm::aead::{AeadInOut, KeyInit, Nonce, Tag};
 use aes_gcm::{AesGcm, aes::Aes256};
 use chacha20poly1305::XChaCha20Poly1305;
 
+use alloc::vec::Vec;
+
 use super::{NonceLength, SymmetricAlgorithm, nonce_size};
-use crate::compat::Vec;
 use crate::consts::AEAD_TAG_LENGTH;
 
 /// Pure Rust AES-256-GCM or XChaCha20-Poly1305 encryption wrapper,

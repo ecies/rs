@@ -1,6 +1,7 @@
 {
   "rust-analyzer.cargo.features": [
-    "aes-rust"
+    "secp256k1",
+    "curve25519"
   ],
   "rust-analyzer.cargo.noDefaultFeatures": true,
   "rust-analyzer.procMacro.enable": true,

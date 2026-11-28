@@ -1,10 +1,6 @@
 #!/bin/sh
 set -e
 
-cargo check --no-default-features --features $CURVE,aes-openssl
-cargo check --no-default-features --features $CURVE,aes-rust
-cargo check --no-default-features --features $CURVE,xchacha20
-
-cargo clippy --no-default-features --features $CURVE,aes-openssl
-cargo clippy --no-default-features --features $CURVE,aes-rust
-cargo clippy --no-default-features --features $CURVE,xchacha20
+# FEATURES: the features on top of --no-default-features, such as secp256k1,curve25519
+cargo check --no-default-features --features $FEATURES
+cargo clippy --no-default-features --features $FEATURES

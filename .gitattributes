@@ -1,0 +1,2 @@
+# CI runs the scripts with Git Bash on Windows too, where a checkout could otherwise turn LF into CRLF
+*.sh text eol=lf

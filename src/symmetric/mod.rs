@@ -1,7 +1,10 @@
+use alloc::vec::Vec;
+
 use getrandom::SysRng;
 use rand_core::{Rng, UnwrapErr};
 
-use crate::compat::Vec;
+use crate::config::{NonceLength, SymmetricAlgorithm, nonce_size};
+use crate::consts::XCHACHA20_NONCE_LENGTH;
 
 mod aead;
 #[cfg(feature = "aes-openssl")]
@@ -10,44 +13,6 @@ mod openssl_aes;
 mod hash;
 
 pub(crate) use hash::hkdf_derive;
-
-/// AEAD for the payload
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SymmetricAlgorithm {
-    Aes256Gcm,
-    XChaCha20,
-}
-
-/// AES-256-GCM nonce length. XChaCha20-Poly1305 ignores it and always uses 24 bytes
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NonceLength {
-    Twelve = 12,
-    Sixteen = 16,
-}
-
-/// The AEAD the Cargo features select. 0.3's `Config` takes this over (#178)
-pub(crate) const FEATURE_ALGORITHM: SymmetricAlgorithm = if cfg!(feature = "xchacha20") {
-    SymmetricAlgorithm::XChaCha20
-} else {
-    SymmetricAlgorithm::Aes256Gcm
-};
-
-/// The AES-256-GCM nonce length the Cargo features select. 0.3's `Config` takes this over (#178)
-pub(crate) const FEATURE_NONCE_LENGTH: NonceLength = if cfg!(feature = "aes-short-nonce") {
-    NonceLength::Twelve
-} else {
-    NonceLength::Sixteen
-};
-
-const XCHACHA20_NONCE_LENGTH: usize = 24;
-
-/// Nonce length inside a payload: 16 or 12 for AES-256-GCM, 24 for XChaCha20-Poly1305
-const fn nonce_size(algorithm: SymmetricAlgorithm, nonce_length: NonceLength) -> usize {
-    match algorithm {
-        SymmetricAlgorithm::Aes256Gcm => nonce_length as usize,
-        SymmetricAlgorithm::XChaCha20 => XCHACHA20_NONCE_LENGTH,
-    }
-}
 
 /// Encrypt `msg` with a random nonce and authenticate `aad`, appending the nonce, tag and ciphertext to `output`.
 ///

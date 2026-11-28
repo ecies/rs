@@ -1,10 +1,12 @@
+use alloc::vec::Vec;
+
 use hkdf::Hkdf;
 use sha2::Sha256;
+use zeroize::Zeroizing;
 
-use crate::compat::Vec;
-use crate::consts::{EMPTY_BYTES, SharedSecret, ZERO_SECRET};
+use crate::consts::{SharedSecret, ZERO_SECRET};
 
-pub fn hkdf_derive(part1: &[u8], part2: &[u8]) -> SharedSecret {
+pub fn hkdf_derive(part1: &[u8], part2: &[u8]) -> Zeroizing<SharedSecret> {
     let size = part1.len() + part2.len();
     let mut master = Vec::with_capacity(size);
     master.extend(part1);
@@ -12,11 +14,12 @@ pub fn hkdf_derive(part1: &[u8], part2: &[u8]) -> SharedSecret {
     hkdf_sha256(&master)
 }
 
-fn hkdf_sha256(master: &[u8]) -> SharedSecret {
+fn hkdf_sha256(master: &[u8]) -> Zeroizing<SharedSecret> {
     let h = Hkdf::<Sha256>::new(None, master);
-    let mut out = ZERO_SECRET;
+    // expanded into `Zeroizing` directly, though hkdf leaves its own copy of the key, and its HMAC state, unwiped
+    let mut out = Zeroizing::new(ZERO_SECRET);
     // never fails because 32 < 255 * chunk_len, which is 32 on SHA256
-    h.expand(&EMPTY_BYTES, &mut out).unwrap();
+    h.expand(&[], out.as_mut_slice()).unwrap();
     out
 }
 

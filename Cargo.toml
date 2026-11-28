@@ -20,12 +20,15 @@ documentation = "https://docs.rs/ecies/latest/ecies/"
 homepage = "https://ecies.org/rs/"
 repository = "https://github.com/ecies/rs"
 
+# every curve and backend. `all-features` would enable the tombstones, which fail the build
+[package.metadata.docs.rs]
+features = ["curve25519", "aes-openssl"]
+
 [dependencies]
 # elliptic curves
 k256 = { version = "0.14.0", default-features = false, features = [
   "arithmetic",
-  "critical-section",
-] }
+], optional = true }
 curve25519-dalek = { version = "5.0.0", default-features = false, features = [
   "precomputed-tables",
 ], optional = true }
@@ -33,16 +36,19 @@ x25519-dalek = { version = "3.0.0", default-features = false, features = [
   "static_secrets",
 ], optional = true }
 ed25519-dalek = { version = "3.0.0", default-features = false, optional = true } # msrv 1.85
-# compares ed25519 secret keys in constant time
+# compares curve25519 secret keys in constant time
 subtle = { version = "2.6.1", default-features = false, optional = true }
+# clears ed25519 secret keys on drop, and the symmetric key `encapsulate` and `decapsulate` return as `Zeroizing`,
+# which makes zeroize 1 a public dependency. k256 and x25519-dalek keys clear themselves, and both pull it in too
+zeroize = { version = "1.9.1", default-features = false }
 
 # symmetric ciphers
 # aes (openssl)
 openssl = { version = "0.10.81", default-features = false, optional = true } # msrv 1.80
-# aes (pure Rust), always compiled
-aes-gcm = { version = "0.11.0", default-features = false, features = ["aes"] }
-# xchacha20, always compiled
-chacha20poly1305 = { version = "0.11.0", default-features = false }
+# aes (pure Rust), always compiled. `zeroize` makes it clear its copy of the key on drop
+aes-gcm = { version = "0.11.0", default-features = false, features = ["aes", "zeroize"] }
+# xchacha20, always compiled. `zeroize` makes it clear its copy of the key on drop
+chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["zeroize"] }
 
 # hash
 hkdf = { version = "0.13.0", default-features = false }
@@ -57,53 +63,40 @@ getrandom = { version = "0.4.3", default-features = false, features = [
 ] }
 rand_core = { version = "0.10.1", default-features = false }
 
-# configuration
-once_cell = { version = "1.21.4", default-features = false, features = [
-  "critical-section",
-] }
-lock_api = "0.4.14"
-parking_lot = { version = "0.12.5", optional = true }
-
 [target.'cfg(all(target_arch = "wasm32", target_os="unknown"))'.dependencies]
 # only for js (browser or node). if it's not js, like substrate, it won't build
 getrandom = { version = "0.4.3", default-features = false, features = ["wasm_js"] }
-once_cell = { version = "1.21.4", default-features = false, features = ["std"] }
 wasm-bindgen = { version = "0.2.126", default-features = false }
 
-[target.'cfg(all(target_arch = "wasm32", not(target_os="unknown")))'.dependencies]
-# for wasm32-wasip2
-once_cell = { version = "1.21.4", default-features = false, features = ["std"] }
-
 [features]
-default = ["aes-openssl"]
-std = ["once_cell/std", "dep:parking_lot"]
-
-# curves
-# no usage, TODO: make optional from 0.3.0: secp256k1 = ["dep:k256"]
-secp256k1 = []
-# the `ecies::x25519` and `ecies::ed25519` modules
-curve25519 = ["dep:curve25519-dalek", "dep:x25519-dalek", "dep:ed25519-dalek", "dep:subtle"]
-# pick the curve `encrypt` and `decrypt` use, until `Config` does
-x25519 = ["curve25519"]
-ed25519 = ["curve25519"]
-
-# zeroize
-zeroize = ["x25519-dalek?/zeroize", "ed25519-dalek?/zeroize"]
-
-# aes
+# Features only compile code in. The wire format is in `Config`
+default = ["secp256k1"]
+# the `ecies::secp256k1` module, `EllipticCurve::Secp256k1`, `Config::DEFAULT`, `encrypt` and `decrypt`
+secp256k1 = ["dep:k256"]
+# the `ecies::x25519` and `ecies::ed25519` modules, `EllipticCurve::X25519` and `EllipticCurve::Ed25519`
+curve25519 = [
+  "dep:curve25519-dalek",
+  "dep:x25519-dalek",
+  "dep:ed25519-dalek",
+  "dep:subtle",
+  "x25519-dalek/zeroize",
+  "ed25519-dalek/zeroize",
+]
+# runs AES-256-GCM on OpenSSL instead of pure Rust
 aes-openssl = ["dep:openssl"]
-# no-op: pure Rust AES is always compiled, and used unless aes-openssl is on
+# k256's precomputed basepoint table, which needs `std`
+std = ["k256?/std", "k256?/precomputed-tables"]
+
+# no-ops, removed in 0.4: pure Rust AES is always compiled, and the dalek keys always zeroize
 aes-rust = []
-# 12 bytes nonce, default: 16 bytes
-aes-short-nonce = []
+zeroize = []
 
-# deprecated aes features, TODO: remove from 0.3.0 (aes-12bytes-nonce becomes a tombstone, #178)
-openssl = ["aes-openssl"]
-pure = ["aes-rust"]
-aes-12bytes-nonce = ["aes-short-nonce"]
-
-# xchacha20: selects XChaCha20-Poly1305 instead of AES-256-GCM
+# tombstones, removed in 0.4: each fails the build with the `Config` field that replaced it
+x25519 = []
+ed25519 = []
 xchacha20 = []
+aes-short-nonce = []
+aes-12bytes-nonce = []
 
 [dev-dependencies]
 criterion = { version = "0.8.2", default-features = false }
@@ -126,3 +119,4 @@ tokio = { version = "1.53.1", default-features = false, features = [
 harness = false
 name = "simple"
 path = "bench/simple.rs"
+required-features = ["secp256k1"]

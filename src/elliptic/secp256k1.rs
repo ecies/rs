@@ -1,12 +1,14 @@
+use alloc::vec::Vec;
+
 use getrandom::SysRng;
 use rand_core::{CryptoRng, UnwrapErr};
 
 use k256::elliptic_curve::Generate;
 use k256::elliptic_curve::sec1::ToSec1Point;
 use k256::{NonZeroScalar, PublicKey as K256PublicKey, SecretKey as K256SecretKey};
+use zeroize::Zeroizing;
 
 use crate::Error;
-use crate::compat::Vec;
 use crate::consts::SharedSecret;
 use crate::symmetric::hkdf_derive;
 
@@ -116,8 +118,8 @@ pub fn generate_keypair() -> (SecretKey, PublicKey) {
     (sk, pk)
 }
 
-/// Calculate a shared symmetric key of our secret key and peer's public key by hkdf
-pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, compressed: bool) -> Result<SharedSecret, Error> {
+/// Calculate a shared symmetric key of our secret key and peer's public key by hkdf. The key clears its bytes on drop
+pub fn encapsulate(sk: &SecretKey, peer_pk: &PublicKey, compressed: bool) -> Result<Zeroizing<SharedSecret>, Error> {
     encapsulate_with_sender(sk, &PublicKey::from_secret_key(sk), peer_pk, compressed)
 }
 
@@ -127,14 +129,14 @@ pub(crate) fn encapsulate_with_sender(
     sender_pk: &PublicKey,
     peer_pk: &PublicKey,
     compressed: bool,
-) -> Result<SharedSecret, Error> {
+) -> Result<Zeroizing<SharedSecret>, Error> {
     let mut shared_point = *peer_pk;
     shared_point.tweak_mul_assign(sk)?;
     Ok(get_shared_secret(sender_pk, &shared_point, compressed))
 }
 
-/// Calculate a shared symmetric key of our public key and peer's secret key by hkdf
-pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, compressed: bool) -> Result<SharedSecret, Error> {
+/// Calculate a shared symmetric key of our public key and peer's secret key by hkdf. The key clears its bytes on drop
+pub fn decapsulate(pk: &PublicKey, peer_sk: &SecretKey, compressed: bool) -> Result<Zeroizing<SharedSecret>, Error> {
     let mut shared_point = *pk;
     shared_point.tweak_mul_assign(peer_sk)?;
     Ok(get_shared_secret(pk, &shared_point, compressed))
@@ -159,7 +161,7 @@ pub(crate) fn pk_to_vec(pk: &PublicKey, compressed: bool) -> Vec<u8> {
     }
 }
 
-fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey, compressed: bool) -> SharedSecret {
+fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey, compressed: bool) -> Zeroizing<SharedSecret> {
     if compressed {
         hkdf_derive(
             &sender_point.serialize_compressed(),
@@ -170,14 +172,13 @@ fn get_shared_secret(sender_point: &PublicKey, shared_point: &PublicKey, compres
     }
 }
 
-// these tests go through `encrypt` and `decrypt`, so they run when the features pick secp256k1
-#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
+#[cfg(test)]
 mod known_tests {
     use super::{PublicKey, SecretKey, encapsulate, parse_sk};
 
+    use crate::Error;
     use crate::consts::ZERO_SECRET;
     use crate::utils::tests::decode_hex;
-    use crate::{Error, decrypt};
     pub fn get_sk(i: u8) -> SecretKey {
         let mut sk = ZERO_SECRET;
         sk[31] = i;
@@ -231,73 +232,71 @@ mod known_tests {
         );
     }
 
-    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
+    /// One payload per config: the 0.2 builds for each cipher made the first and the last two, and eciesjs 0.5.0 the
+    /// three with compression flags
     #[test]
     pub fn test_known_encrypted() {
-        let sk = decode_hex("e520872701d9ec44dbac2eab85512ad14ad0c42e01de56d7b528abd8524fcb47");
-        let encrypted = decode_hex(
-            "0x047be1885aeb48d4d4db0c992996725d3264784fef88c5b60782f8d0f940c213227fc3f904f846d5ec3d0fba6653754501e8ebadc421aa3892a20fef33cff0206047058a4cfb4efbeae96b2d019b4ab2edce33328748a0d008a69c8f5816b72d45bd9b5a41bb6ea0127ab23057ec6fcd",
-        );
-        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
-    }
+        use crate::config::{Config, NonceLength, SymmetricAlgorithm};
+        use crate::decrypt_with_config;
 
-    /// Encrypted by eciesjs 0.5.0 for the key in `test_known_encrypted`, one payload per compression flag combination
-    #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
-    #[test]
-    pub fn test_known_encrypted_compressed() {
-        use crate::{config::Config, decrypt_with_config};
-
-        let sk = decode_hex("e520872701d9ec44dbac2eab85512ad14ad0c42e01de56d7b528abd8524fcb47");
+        const SK: &str = "e520872701d9ec44dbac2eab85512ad14ad0c42e01de56d7b528abd8524fcb47";
         let payloads = [
             (
-                true,
-                false,
+                Config::DEFAULT,
+                SK,
+                "047be1885aeb48d4d4db0c992996725d3264784fef88c5b60782f8d0f940c213227fc3f904f846d5ec3d0fba6653754501e8ebadc421aa3892a20fef33cff0206047058a4cfb4efbeae96b2d019b4ab2edce33328748a0d008a69c8f5816b72d45bd9b5a41bb6ea0127ab23057ec6fcd",
+            ),
+            (
+                Config {
+                    is_ephemeral_key_compressed: true,
+                    ..Config::DEFAULT
+                },
+                SK,
                 "033d8169d62165331372322220d5694d4c8724cb77ccdfe0015eff7cf2200e5da0a202dced4f1be2cc2347d389c7102f3b51d6aac132f00b3bd172446143b1eae4db1e37a44eadbffb79fe54a39d00e3",
             ),
             (
-                false,
-                true,
+                Config {
+                    is_hkdf_key_compressed: true,
+                    ..Config::DEFAULT
+                },
+                SK,
                 "042f32d10c2a39650fc60581baa1eb8b1c60aac137c4a2885a3d4fe79849097538e658c804fda8597c7bb34ebdaba286989dd82b2be532cd0eb3ec2d8315d0f5b7409466dc590c15957ccee05521ada78ea3f8160cb431cd1bdae0c6348877a33744e876b2b93ac12189b0b45966da26",
             ),
             (
-                true,
-                true,
+                Config {
+                    is_ephemeral_key_compressed: true,
+                    is_hkdf_key_compressed: true,
+                    ..Config::DEFAULT
+                },
+                SK,
                 "02cf035041ce8c45ca75dceef196ac9cbaae38311a6344d3fec64d84a7e92ce7a68903437a621dda249a854c8e19dd1bbf7f888c77db80f2ff9cdf18f0e40b1721aace6e299ca8b54062e56c0b02504d",
+            ),
+            (
+                Config {
+                    symmetric_nonce_length: NonceLength::Twelve,
+                    ..Config::DEFAULT
+                },
+                "562b6cd3611d463f2c59218f1be2816472ad4a489450873dd585de7df662bb68",
+                "04e1b4678e49066bb9e12cc39aa303bf46b1bf4f565ffa56b9e5ebfa05b756612a548b06dfdd1d06afb64ab7a7e52e26e3a1c69da8fe0c3ea125848d44066f90c826f9a8b0c8951a06d9b20b3d434dc650862d85fcd4fb4b3f30e0658661d24cb9c31bcae0bf56564495c64b",
+            ),
+            (
+                Config {
+                    symmetric_algorithm: SymmetricAlgorithm::XChaCha20,
+                    ..Config::DEFAULT
+                },
+                "9445d8b9911622546a266b2e663bf2b498073a64279409afb9ef20f8259c651f",
+                "04eaf35ad4dde0ace3f673fec6be164dc68e11aa9c1988d4c1b91f0ccdef94cf591aae4e9daf5f8a87837136fc70811df852015a8b4e2cb374c27db16933536085f34470ffef72667bbe984c145302fc8d37f66563339c47f41ef871ee0ebda8c1bad133c3b203c769cb694e5adbd6c9f02b2eedd939875a",
             ),
         ];
 
-        for (is_ephemeral_key_compressed, is_hkdf_key_compressed, encrypted) in payloads {
-            let config = Config {
-                is_ephemeral_key_compressed,
-                is_hkdf_key_compressed,
-            };
-            let decrypted = decrypt_with_config(&sk, &decode_hex(encrypted), &[], &config).unwrap();
-            assert_eq!(decrypted, "hello world🌍".as_bytes());
+        for (config, sk, encrypted) in payloads {
+            let decrypted = decrypt_with_config(&decode_hex(sk), &decode_hex(encrypted), &[], &config);
+            assert_eq!(decrypted.as_deref(), Ok("hello world🌍".as_bytes()), "{config:?}");
         }
-    }
-
-    #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
-    #[test]
-    pub fn test_known_encrypted_short_nonce() {
-        let sk = decode_hex("562b6cd3611d463f2c59218f1be2816472ad4a489450873dd585de7df662bb68");
-        let encrypted = decode_hex(
-            "04e1b4678e49066bb9e12cc39aa303bf46b1bf4f565ffa56b9e5ebfa05b756612a548b06dfdd1d06afb64ab7a7e52e26e3a1c69da8fe0c3ea125848d44066f90c826f9a8b0c8951a06d9b20b3d434dc650862d85fcd4fb4b3f30e0658661d24cb9c31bcae0bf56564495c64b",
-        );
-        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
-    }
-
-    #[cfg(feature = "xchacha20")]
-    #[test]
-    pub fn test_known_encrypted_xchacha20() {
-        let sk = decode_hex("9445d8b9911622546a266b2e663bf2b498073a64279409afb9ef20f8259c651f");
-        let encrypted = decode_hex(
-            "04eaf35ad4dde0ace3f673fec6be164dc68e11aa9c1988d4c1b91f0ccdef94cf591aae4e9daf5f8a87837136fc70811df852015a8b4e2cb374c27db16933536085f34470ffef72667bbe984c145302fc8d37f66563339c47f41ef871ee0ebda8c1bad133c3b203c769cb694e5adbd6c9f02b2eedd939875a",
-        );
-        assert_eq!(decrypt(&sk, &encrypted).unwrap(), "hello world🌍".as_bytes());
     }
 }
 
-#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
+#[cfg(test)]
 mod random_tests {
     use rand_core::utils::{fill_bytes_via_next_word, next_u64_via_u32};
     use rand_core::{Infallible, TryCryptoRng, TryRng};
@@ -390,12 +389,9 @@ mod random_tests {
     }
 }
 
-#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
+#[cfg(test)]
 mod error_tests {
-    #[cfg(not(feature = "std"))]
     use alloc::format;
-    #[cfg(feature = "std")]
-    use std::format;
 
     use super::{PublicKey, generate_keypair, parse_pk};
     use crate::{Error, decrypt, encrypt};
@@ -464,32 +460,20 @@ mod error_tests {
     }
 }
 
-#[cfg(all(test, not(any(feature = "x25519", feature = "ed25519"))))]
-#[allow(deprecated)]
+#[cfg(test)]
 mod config_tests {
     use super::generate_keypair;
 
-    use crate::config::{
-        Config, get_ephemeral_key_size, is_ephemeral_key_compressed, is_hkdf_key_compressed, reset_config,
-        update_config,
-    };
-    use crate::consts::{COMPRESSED_PUBLIC_KEY_SIZE, NONCE_TAG_LENGTH, UNCOMPRESSED_PUBLIC_KEY_SIZE};
+    use crate::config::{Config, NonceLength, SymmetricAlgorithm};
+    use crate::consts::{AEAD_TAG_LENGTH, COMPRESSED_PUBLIC_KEY_SIZE, UNCOMPRESSED_PUBLIC_KEY_SIZE};
     use crate::{Error, decrypt, decrypt_with_config, encrypt, encrypt_with_config};
 
     const MSG: &str = "helloworld🌍";
     const COMPRESSED: Config = Config {
         is_ephemeral_key_compressed: true,
         is_hkdf_key_compressed: true,
+        ..Config::DEFAULT
     };
-
-    /// Resets the global config when dropped, so a test that fails partway doesn't leave it changed for the others
-    struct ResetConfig;
-
-    impl Drop for ResetConfig {
-        fn drop(&mut self) {
-            reset_config();
-        }
-    }
 
     #[test]
     pub fn test_ephemeral_key_size() {
@@ -518,7 +502,7 @@ mod config_tests {
             let encrypted = encrypt_with_config(pk, MSG.as_bytes(), &[], &config).unwrap();
             assert_eq!(
                 encrypted.len(),
-                config.ephemeral_key_size() + NONCE_TAG_LENGTH + MSG.len()
+                config.ephemeral_key_size() + config.nonce_length() + AEAD_TAG_LENGTH + MSG.len()
             );
             assert_eq!(
                 decrypt_with_config(sk, &encrypted, &[], &config).unwrap(),
@@ -538,120 +522,83 @@ mod config_tests {
         );
     }
 
+    /// `encrypt` and `decrypt` are the `_with_config` functions with `Config::DEFAULT` and no AAD
     #[test]
-    pub fn test_global_getters() {
-        let _reset = ResetConfig;
-
-        update_config(Config {
-            is_ephemeral_key_compressed: true,
-            ..Config::DEFAULT
-        });
-        assert!(is_ephemeral_key_compressed());
-        assert!(!is_hkdf_key_compressed());
-
-        update_config(Config {
-            is_hkdf_key_compressed: true,
-            ..Config::DEFAULT
-        });
-        assert!(!is_ephemeral_key_compressed());
-        assert!(is_hkdf_key_compressed());
-    }
-
-    #[test]
-    pub fn test_config_ignores_global() {
-        let _reset = ResetConfig;
+    pub fn test_default_config() {
         let (sk, pk) = generate_keypair();
         let (sk, pk) = (&sk.serialize(), &pk.serialize());
 
-        update_config(COMPRESSED);
-        assert_eq!(get_ephemeral_key_size(), COMPRESSED_PUBLIC_KEY_SIZE);
-
-        let encrypted = encrypt_with_config(pk, MSG.as_bytes(), &[], &Config::DEFAULT).unwrap();
+        let encrypted = encrypt(pk, MSG.as_bytes()).unwrap();
         assert_eq!(
             encrypted.len(),
-            UNCOMPRESSED_PUBLIC_KEY_SIZE + NONCE_TAG_LENGTH + MSG.len()
+            UNCOMPRESSED_PUBLIC_KEY_SIZE + 16 + AEAD_TAG_LENGTH + MSG.len()
         );
         assert_eq!(
-            decrypt_with_config(sk, &encrypted, &[], &Config::DEFAULT).unwrap(),
-            MSG.as_bytes()
-        );
-        assert!(decrypt(sk, &encrypted).is_err());
-
-        // encrypt and decrypt use the global config as a whole
-        let encrypted = encrypt(pk, MSG.as_bytes()).unwrap();
-        assert_eq!(
-            decrypt_with_config(sk, &encrypted, &[], &COMPRESSED).unwrap(),
-            MSG.as_bytes()
+            decrypt_with_config(sk, &encrypted, &[], &Config::DEFAULT).as_deref(),
+            Ok(MSG.as_bytes())
         );
 
-        reset_config();
-        assert_eq!(get_ephemeral_key_size(), UNCOMPRESSED_PUBLIC_KEY_SIZE);
-    }
+        let encrypted = encrypt_with_config(pk, MSG.as_bytes(), &[], &Config::DEFAULT).unwrap();
+        assert_eq!(decrypt(sk, &encrypted).as_deref(), Ok(MSG.as_bytes()));
 
-    #[test]
-    pub fn test_hkdf_key_config() {
-        let _reset = ResetConfig;
-        let (sk, pk) = generate_keypair();
-        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
-
-        update_config(Config {
-            is_hkdf_key_compressed: true,
-            ..Config::default()
-        });
-
-        let encrypted = encrypt(pk, MSG.as_bytes()).unwrap();
-        assert_eq!(MSG.as_bytes(), &decrypt(sk, &encrypted).unwrap());
-
-        reset_config();
-        assert_eq!(decrypt(sk, &encrypted).unwrap_err(), Error::InvalidMessage);
-    }
-
-    #[test]
-    pub fn test_ephemeral_key_config() {
-        let _reset = ResetConfig;
-        let (sk, pk) = generate_keypair();
-        let (sk, pk) = (&sk.serialize(), &pk.serialize_compressed());
-        let encrypted_1 = encrypt(pk, MSG.as_bytes()).unwrap();
-        assert_eq!(MSG.as_bytes(), &decrypt(sk, &encrypted_1).unwrap());
-
-        update_config(Config {
-            is_ephemeral_key_compressed: true,
-            ..Config::default()
-        });
-
-        let encrypted_2 = encrypt(pk, MSG.as_bytes()).unwrap();
-        assert_eq!(encrypted_1.len() - encrypted_2.len(), 32);
-        assert_eq!(MSG.as_bytes(), &decrypt(sk, &encrypted_2).unwrap());
-
-        reset_config();
+        // `decrypt` refuses payloads made with any other setting
+        let others = [
+            (
+                Config {
+                    is_ephemeral_key_compressed: true,
+                    ..Config::DEFAULT
+                },
+                b"".as_slice(),
+                Error::InvalidPublicKey,
+            ),
+            (
+                Config {
+                    is_hkdf_key_compressed: true,
+                    ..Config::DEFAULT
+                },
+                b"",
+                Error::InvalidMessage,
+            ),
+            (
+                Config {
+                    symmetric_algorithm: SymmetricAlgorithm::XChaCha20,
+                    ..Config::DEFAULT
+                },
+                b"",
+                Error::InvalidMessage,
+            ),
+            (
+                Config {
+                    symmetric_nonce_length: NonceLength::Twelve,
+                    ..Config::DEFAULT
+                },
+                b"",
+                Error::InvalidMessage,
+            ),
+            (Config::DEFAULT, b"aad", Error::InvalidMessage),
+        ];
+        for (config, aad, error) in others {
+            let encrypted = encrypt_with_config(pk, MSG.as_bytes(), aad, &config).unwrap();
+            assert_eq!(decrypt(sk, &encrypted), Err(error), "{config:?} {aad:?}");
+        }
     }
 }
 
-#[cfg(all(test, target_arch = "wasm32", not(any(feature = "x25519", feature = "ed25519"))))]
+#[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test]
     fn test_known() {
         super::known_tests::test_known_shared_secret();
-        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
         super::known_tests::test_known_encrypted();
-        #[cfg(all(not(feature = "xchacha20"), not(feature = "aes-short-nonce")))]
-        super::known_tests::test_known_encrypted_compressed();
-        #[cfg(all(not(feature = "xchacha20"), feature = "aes-short-nonce"))]
-        super::known_tests::test_known_encrypted_short_nonce();
-        #[cfg(feature = "xchacha20")]
-        super::known_tests::test_known_encrypted_xchacha20();
     }
 
     #[wasm_bindgen_test]
     fn test_config() {
         super::config_tests::test_ephemeral_key_size();
         super::config_tests::test_config_flags();
-        super::config_tests::test_global_getters();
-        super::config_tests::test_config_ignores_global();
-        super::config_tests::test_hkdf_key_config();
-        super::config_tests::test_ephemeral_key_config();
+        super::config_tests::test_default_config();
     }
 
     #[wasm_bindgen_test]

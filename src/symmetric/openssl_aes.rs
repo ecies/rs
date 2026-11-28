@@ -1,11 +1,8 @@
+use alloc::vec;
+use alloc::vec::Vec;
+
 use openssl::symm::{Cipher, Crypter, Mode};
 
-#[cfg(not(feature = "std"))]
-use alloc::vec;
-#[cfg(feature = "std")]
-use std::vec;
-
-use crate::Vec;
 use crate::consts::AEAD_TAG_LENGTH;
 
 /// rust-openssl panics on more than `i32::MAX` bytes in one call, so longer messages go through in chunks
