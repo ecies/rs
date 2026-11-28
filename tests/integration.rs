@@ -80,6 +80,66 @@ fn test_aad() {
     assert_eq!(decrypt(&sk, &empty_aad).unwrap(), MSG);
 }
 
+/// A 33-byte secp256k1 key starts with `0x02` or `0x03` (SEC1). k256 also reads `0x05`, the sec1 crate's compact
+/// form, which names a point by x alone, so encrypting to one could miss the receiver's key (#185)
+#[test]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "x25519"), not(feature = "ed25519"),))]
+fn rejects_compact_receiver_keys() {
+    use ecies::secp256k1::{PublicKey, PublicKeyFormat};
+    use ecies::{Error, encrypt, utils::generate_keypair};
+
+    let (_, pk) = generate_keypair();
+    let compressed = pk.serialize_compressed();
+    // the same x with the other y, so both prefixes are checked on every run
+    let mut negated = compressed;
+    negated[0] ^= 1;
+    for key in [compressed, negated] {
+        for format in [None, Some(PublicKeyFormat::Compressed)] {
+            assert_eq!(
+                PublicKey::parse_slice(&key, format).map(|pk| pk.serialize_compressed()),
+                Ok(key),
+                "{format:?}"
+            );
+        }
+    }
+
+    let mut compact = compressed;
+    compact[0] = 0x05;
+    assert_eq!(PublicKey::parse_slice(&compact, None), Err(Error::InvalidPublicKey));
+    assert_eq!(
+        PublicKey::parse_slice(&compact, Some(PublicKeyFormat::Compressed)),
+        Err(Error::InvalidPublicKey)
+    );
+    assert_eq!(encrypt(&compact, b"msg"), Err(Error::InvalidPublicKey));
+}
+
+/// A payload whose compressed ephemeral key is rewritten to the compact `0x05` form decrypted whenever that form
+/// named the same point, so one message had two encodings (#185)
+#[test]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "x25519"), not(feature = "ed25519"),))]
+fn rejects_compact_ephemeral_keys() {
+    use ecies::config::Config;
+    use ecies::{Error, decrypt_with_config, encrypt_with_config, utils::generate_keypair};
+
+    const COMPRESSED: Config = Config {
+        is_ephemeral_key_compressed: true,
+        ..Config::DEFAULT
+    };
+
+    let (sk, pk) = generate_keypair();
+    let (sk, pk) = (sk.serialize(), pk.serialize());
+    let mut encrypted = encrypt_with_config(&pk, b"msg", b"", &COMPRESSED).unwrap();
+    assert_eq!(decrypt_with_config(&sk, &encrypted, b"", &COMPRESSED).unwrap(), b"msg");
+
+    // the payload starts with the ephemeral key
+    assert!(matches!(encrypted[0], 0x02 | 0x03));
+    encrypted[0] = 0x05;
+    assert_eq!(
+        decrypt_with_config(&sk, &encrypted, b"", &COMPRESSED),
+        Err(Error::InvalidPublicKey)
+    );
+}
+
 /// The compression flags apply to secp256k1 only
 #[test]
 #[cfg(all(not(target_arch = "wasm32"), any(feature = "x25519", feature = "ed25519")))]
